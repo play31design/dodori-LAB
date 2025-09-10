@@ -8,6 +8,8 @@
   :root{
     --accent:#3B82F6;
     --bg:#f6f7f9; --card:#fff; --ink:#111; --line:#e5e7eb;
+    --pink-btn:#FDE7EF;   /* 연한 분홍 */
+    --pink-text:#9D174D;  /* 와인 텍스트 */
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -36,14 +38,13 @@
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
   button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
   .primary{background:var(--accent);color:#fff}
-
-  /* 요청: 삭제/모두삭제 연분홍 */
-  .danger{
-    background:#FBCFE8;           /* 연분홍 */
-    color:#9D174D;                 /* 선명한 루비 텍스트 */
-  }
-
   .ghost{background:#eef4ff;color:#3B82F6}
+
+  /* 요청: 삭제/모두삭제 연한 분홍 */
+  .danger{
+    background:var(--pink-btn);
+    color:var(--pink-text);
+  }
 
   .result{font-weight:700;font-size:20px;margin:16px 0 0;text-align:center}
 
@@ -68,7 +69,6 @@
         <div class="wheel-wrap">
           <div class="pin"></div>
           <svg viewBox="-50 -50 100 100" aria-label="랜덤 돌림판">
-            <defs id="clipdefs"></defs>
             <g id="slices" class="spin-transition"></g>
             <g id="labels" class="spin-transition"></g>
           </svg>
@@ -100,7 +100,6 @@
   /* ===== 전역 상태/DOM ===== */
   const gSlices = document.getElementById('slices');
   const gLabels = document.getElementById('labels');
-  const clipDefs = document.getElementById('clipdefs');
   const inputsBox = document.getElementById('inputs');
   const resultEl  = document.getElementById('result');
   const btnSpin   = document.getElementById('spin');
@@ -117,13 +116,13 @@
 
   /* 파스텔 팔레트: 항목 수에 맞춰 겹치지 않게 균등 분포 */
   function pastelHSL(i, n){
-    const h = Math.round((360 * i) / n);      // 고르게 분산
-    const s = 70;                              // 파스텔 채도
-    const l = 85;                              // 파스텔 명도
+    const h = Math.round((360 * i) / n);  // 고르게 분산
+    const s = 70;                          // 채도
+    const l = 85;                          // 명도
     return `hsl(${h} ${s}% ${l}%)`;
   }
 
-  /* 섹터 중심 반지름 (텍스트는 조금 더 안쪽에서 배치) */
+  /* 섹터 중심 반지름 (텍스트는 조금 더 안쪽) */
   const sectorCentroidR = (R, thetaRad) => {
     const half = thetaRad/2;
     if (half === 0) return R*0.6;
@@ -131,30 +130,40 @@
     return Math.min(R*0.82, Math.max(R*0.38, r));
   };
 
-  /* 세로(중심→바깥) 배치용 폰트 크기 계산
-     - 이용 가능한 반지름 길이 안에 글자 수만큼 들어가도록 size 계산 */
+  /* 세로(중심→바깥) 배치용 폰트 크기: 사용 가능한 반지름 길이에 맞춤 */
   function fitFontSizeVertical(text, rStart, rEnd){
-    const maxSize = 5.5, minSize = 2.4;
-    const usable  = Math.max(10, rEnd - rStart); // 사용 가능한 길이
+    const maxSize = 5.5, minSize = 2.6;
+    const usable  = Math.max(10, rEnd - rStart);
     const len = Math.max(1, [...text].length);
-    const lineFactor = 1.05; // 한 글자당 차지하는 높이(em)
+    const lineFactor = 1.08; // 한 글자당 차지 높이(em)
     let size = Math.min(maxSize, usable / (len * lineFactor));
-    size = Math.max(minSize, Math.min(maxSize, size));
-    return size.toFixed(2);
+    return Math.max(minSize, Math.min(maxSize, size)).toFixed(2);
   }
 
   /* ===== 휠 그리기 =====
-     - 텍스트를 '회전축(반지름) 방향'으로 세로 배치 (중심→바깥)
-     - 클리핑으로 섹션 밖 시각 노출 방지
+     - items가 비어 있으면 연한 회색 원만 표시
+     - 텍스트는 세로쓰기, 클리핑/텍스트 길이 강제 없음
   */
   function drawWheel(){
-    const n = Math.max(1, items.length);
-    const slice = 360/n;
-    const theta = deg2rad(slice);
+    const n = items.length;
 
     gSlices.innerHTML = '';
     gLabels.innerHTML = '';
-    clipDefs.innerHTML = '';
+
+    if(n === 0){
+      // 연한 회색 원 유지
+      const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx','0'); circle.setAttribute('cy','0'); circle.setAttribute('r','48');
+      circle.setAttribute('fill','#E5E7EB');
+      gSlices.appendChild(circle);
+
+      gSlices.style.transform = `rotate(0deg)`;
+      gLabels.style.transform = `rotate(0deg)`;
+      return;
+    }
+
+    const slice = 360/n;
+    const theta = deg2rad(slice);
 
     for (let i=0;i<n;i++){
       const start = i*slice - 90;
@@ -164,58 +173,55 @@
       const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
       const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
 
-      // 조각 (색상: 겹치지 않도록 HSL 분포)
+      // 조각
       const p = document.createElementNS('http://www.w3.org/2000/svg','path');
       p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
       p.setAttribute('fill', pastelHSL(i,n));
       gSlices.appendChild(p);
 
-      // clipPath (섹션 밖으로 보이지 않게)
-      const clipId = `clip-${i}`;
-      const clip = document.createElementNS('http://www.w3.org/2000/svg','clipPath');
-      clip.setAttribute('id', clipId);
-      const clipPath = document.createElementNS('http://www.w3.org/2000/svg','path');
-      clipPath.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
-      clip.appendChild(clipPath);
-      clipDefs.appendChild(clip);
-
       // 라벨 배치
       const mid = start + slice/2;     // 섹션 중앙각
       const label = (items[i] ?? '').toString().trim() || '항목';
 
-      // 세로 배치용 반지름 범위 (조금 여유)
-      const rCenter = sectorCentroidR(42, deg2rad(slice));
+      // 세로 배치용 반지름 범위 (여유)
+      const rCenter = sectorCentroidR(42, theta);
       const rStart  = Math.max(10, rCenter - 10);
       const rEnd    = Math.min(46, rCenter + 10);
-
       const fontSize = fitFontSizeVertical(label, rStart, rEnd);
 
       const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-      // mid만큼 회전 → 중앙 반지름으로 이동 → (세로 글자라 추가 역회전 없이 그대로)
+      // 섹션 중앙각만큼 회전 → 라벨 중심 반지름 위치로 이동
       g.setAttribute('transform', `rotate(${mid}) translate(0, -${(rStart+rEnd)/2})`);
-      g.setAttribute('clip-path', `url(#${clipId})`);
 
-      // 실제 라벨 (세로쓰기, 중앙정렬)
       const t = document.createElementNS('http://www.w3.org/2000/svg','text');
       t.setAttribute('text-anchor','middle');
       t.setAttribute('dominant-baseline','middle');
       t.setAttribute('font-size', fontSize);
-      t.setAttribute('font-weight','600');
+      t.setAttribute('font-weight','700');
       t.setAttribute('fill','#111');
-      t.style.writingMode = 'vertical-rl';           // 세로(중심→바깥)
-      t.style.glyphOrientationVertical = '0';        // 글립 수평 회전 방지
+      t.style.writingMode = 'vertical-rl';          // 세로(중심→바깥)
+      t.style.glyphOrientationVertical = '0';
+      // 가독성 보조(얇은 외곽선) - 선택 사항
+      t.style.paintOrder = 'stroke fill';
+      t.setAttribute('stroke', 'rgba(255,255,255,.5)');
+      t.setAttribute('stroke-width', '0.25');
+
       t.textContent = label;
 
       g.appendChild(t);
       gLabels.appendChild(g);
     }
 
-    // 현재 누적 회전 유지
+    // 현재 누적 회전 각도 유지
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
   }
 
   /* ===== 입력창 ===== */
+  function ensureOneRow(){
+    if (inputsBox.children.length === 0) addRow('');
+  }
+
   function rowTemplate(value=''){
     const row = document.createElement('div');
     row.className = 'input-row';
@@ -232,17 +238,46 @@
     input.addEventListener('keydown', e=>{
       if(e.key==='Enter'){ e.preventDefault(); addRow(); }
     });
-    del.addEventListener('click', ()=>{ row.remove(); syncFromInputs(); });
+    del.addEventListener('click', ()=>{
+      row.remove();
+      // 최소 1행 유지
+      ensureOneRow();
+      syncFromInputs();
+    });
     return row;
   }
-  function renderInputs(){ inputsBox.innerHTML=''; (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v))); }
-  function collectItems(){ return Array.from(inputsBox.querySelectorAll('input')).map(i=>i.value.trim()).filter(Boolean); }
-  function syncFromInputs(){ items = collectItems(); drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다'; }
 
-  function addRow(value=''){ inputsBox.appendChild(rowTemplate(value)); inputsBox.lastChild.querySelector('input').focus(); }
+  function renderInputs(){
+    inputsBox.innerHTML='';
+    (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v)));
+  }
+
+  function collectItems(){
+    return Array.from(inputsBox.querySelectorAll('input'))
+      .map(i=>i.value.trim())
+      .filter(Boolean);
+  }
+
+  function syncFromInputs(){
+    items = collectItems();
+    drawWheel();
+    resultEl.textContent = '선택된 재료가 여기에 표시됩니다';
+  }
+
+  function addRow(value=''){
+    inputsBox.appendChild(rowTemplate(value));
+    inputsBox.lastChild.querySelector('input').focus();
+  }
+
   btnAdd.addEventListener('click', ()=> addRow());
+
+  // 모두 삭제: 입력 1칸 + 회색 원 유지
   btnClear.addEventListener('click', ()=>{
-    inputsBox.innerHTML=''; items=[]; drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다';
+    items = [];
+    inputsBox.innerHTML = '';
+    addRow('');              // 빈 입력 1개 남김
+    drawWheel();             // 회색 원
+    resultEl.textContent='선택된 재료가 여기에 표시됩니다';
   });
 
   /* ===== 스핀: 누적 회전 ===== */
