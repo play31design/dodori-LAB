@@ -5,240 +5,232 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>어떤 재료를 사용해 볼까요?</title>
 <style>
-  :root{
-    --accent:#3B82F6;                 /* 핀/버튼 포인트 컬러 */
-    --bg:#f6f7f9; --card:#fff; --ink:#111; --line:#e5e7eb;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-  .wrap{max-width:980px;margin:0 auto;padding:28px 16px}
-  h1{margin:8px 0 22px;font-size:32px;text-align:center;color:#000}
+  :root{
+    --accent:#3B82F6;                 /* 핀/버튼 포인트 컬러 */
+    --bg:#f6f7f9; --card:#fff; --ink:#111; --line:#e5e7eb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 16px}
+  h1{margin:8px 0 22px;font-size:32px;text-align:center;color:#000}
 
-  .grid{display:grid;gap:20px}
-  @media(min-width:900px){.grid{grid-template-columns:560px 1fr}}
+  .grid{display:grid;gap:20px}
+  @media(min-width:900px){.grid{grid-template-columns:560px 1fr}}
 
-  .card{background:var(--card);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden}
-  .pad{padding:20px}
+  .card{background:var(--card);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden}
+  .pad{padding:20px}
 
-  /* 휠 (반응형 상한) */
-  .wheel-box{width:min(92vw,520px);margin:0 auto;}
-  .wheel-wrap{position:relative;width:100%;aspect-ratio:1/1;}
-  svg{width:100%;height:100%;display:block}
-  #slices,#labels{transform-box:fill-box;transform-origin:50% 50%}
+  /* 휠 (반응형 상한) */
+  .wheel-box{width:min(92vw,520px);margin:0 auto;}
+  .wheel-wrap{position:relative;width:100%;aspect-ratio:1/1;}
+  svg{width:100%;height:100%;display:block}
+  #slices,#labels{transform-box:fill-box;transform-origin:50% 50%}
 
-  /* 상단 핀 */
-  .pin{position:absolute;left:50%;transform:translateX(-50%);top:-4px;width:0;height:0;
-       border-left:14px solid transparent;border-right:14px solid transparent;
-       border-top:24px solid var(--accent);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+  /* 상단 핀 */
+  .pin{position:absolute;left:50%;transform:translateX(-50%);top:-4px;width:0;height:0;
+       border-left:14px solid transparent;border-right:14px solid transparent;
+       border-top:24px solid var(--accent);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
 
-  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
-  button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
-  .primary{background:var(--accent);color:#fff}
-  .ghost{background:#eef4ff;color:var(--accent)}
-  .danger{background:#ef4444;color:#fff}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
+  button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
+  .primary{background:var(--accent);color:#fff}
+  .ghost{background:#eef4ff;color:var(--accent)}
+  .danger{background:#ef4444;color:#fff}
 
-  .result{font-weight:700;font-size:20px;margin:16px 0 0;text-align:center}
+  .result{font-weight:700;font-size:20px;margin:16px 0 0;text-align:center}
 
-  .inputs-title{margin:0 0 6px;font-size:18px}
-  .inputs{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-  .input-row{display:flex;gap:8px}
-  .input-row input{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit}
+  .inputs-title{margin:0 0 6px;font-size:18px}
+  .inputs{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .input-row{display:flex;gap:8px}
+  .input-row input{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit}
 
-  /* 회전 트랜지션: 네 코드와 동일한 감속곡선/시간 */
-  .spin-transition{transition:transform 4s cubic-bezier(0.2,0.8,0.2,1)}
+  /* 회전 트랜지션: 네 코드와 동일한 감속곡선/시간 */
+  .spin-transition{transition:transform 4s cubic-bezier(0.2,0.8,0.2,1)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>어떤 재료를 사용해 볼까요?</h1>
+  <h1>어떤 재료를 사용해 볼까요?</h1>
 
-  <div class="grid">
-    <!-- 왼쪽: 돌림판 -->
-    <div class="card pad">
-      <div class="wheel-box">
-        <div class="wheel-wrap">
-          <div class="pin"></div>
-          <svg viewBox="-50 -50 100 100" aria-label="랜덤 돌림판">
-            <g id="slices" class="spin-transition"></g>
-            <g id="labels" class="spin-transition"></g>
-          </svg>
-        </div>
-      </div>
+  <div class="grid">
+    <!-- 왼쪽: 돌림판 -->
+    <div class="card pad">
+      <div class="wheel-box">
+        <div class="wheel-wrap">
+          <div class="pin"></div>
+          <svg viewBox="-50 -50 100 100" aria-label="랜덤 돌림판">
+            <g id="slices" class="spin-transition"></g>
+            <g id="labels" class="spin-transition"></g>
+          </svg>
+        </div>
+      </div>
 
-      <div class="row">
-        <button id="spin" class="primary">돌리기</button>
-        <button id="reset" class="ghost">처음 상태로</button>
-      </div>
-      <div id="result" class="result">선택된 재료가 여기에 표시됩니다</div>
-    </div>
+      <div class="row">
+        <button id="spin" class="primary">돌리기</button>
+      </div>
+      <div id="result" class="result">선택된 재료가 여기에 표시됩니다</div>
+    </div>
 
-    <!-- 오른쪽: 입력창 -->
-    <div class="card pad">
-      <h2 class="inputs-title">수집한 재료를 입력해 주세요.</h2>
-      <div class="inputs" id="inputs"></div>
-      <div class="row">
-        <button id="add" class="ghost">항목 추가</button>
-        <button id="clear" class="danger">모두 삭제</button>
-      </div>
-    </div>
-  </div>
+    <!-- 오른쪽: 입력창 -->
+    <div class="card pad">
+      <h2 class="inputs-title">수집한 재료를 입력해 주세요.</h2>
+      <div class="inputs" id="inputs"></div>
+      <div class="row">
+        <button id="add" class="ghost">항목 추가</button>
+        <button id="clear" class="danger">모두 삭제</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-  /* ===== 상수/유틸 ===== */
-  const PASTELS = ['#D9ECFF','#FFE4EA','#FFF6C9','#DDF8EA','#E9D8FD','#FFE8CC']; // 하늘·핑크·바나나·민트·라벤더·피치
-  const deg2rad = d => d * Math.PI / 180;
+  /* ===== 상수/유틸 ===== */
+  const PASTELS = ['#D9ECFF','#FFE4EA','#FFF6C9','#DDF8EA','#E9D8FD','#FFE8CC']; // 하늘·핑크·바나나·민트·라벤더·피치
+  const deg2rad = d => d * Math.PI / 180;
 
-  /* ===== 전역 상태/DOM ===== */
-  const gSlices = document.getElementById('slices');
-  const gLabels = document.getElementById('labels');
-  const inputsBox = document.getElementById('inputs');
-  const resultEl  = document.getElementById('result');
-  const btnSpin   = document.getElementById('spin');
-  const btnReset  = document.getElementById('reset');
-  const btnAdd    = document.getElementById('add');
-  const btnClear  = document.getElementById('clear');
+  /* ===== 전역 상태/DOM ===== */
+  const gSlices = document.getElementById('slices');
+  const gLabels = document.getElementById('labels');
+  const inputsBox = document.getElementById('inputs');
+  const resultEl  = document.getElementById('result');
+  const btnSpin   = document.getElementById('spin');
+  const btnAdd    = document.getElementById('add');
+  const btnClear  = document.getElementById('clear');
 
-  let items = ["병뚜껑","종이","빨대"];
-  let isSpinning = false;
+  let items = ["병뚜껑","종이","빨대","우유팩"]; // '우유팩' 항목 추가
+  let isSpinning = false;
 
-  /* 캔버스 코드의 ‘누적 회전’ 방식 */
-  const SPIN_TURNS_DEG = 360 * 10; // 10바퀴
-  let currentDeg = 0;              // 누적 회전 각도 (연속 회전 느낌)
+  /* 캔버스 코드의 ‘누적 회전’ 방식 */
+  const SPIN_TURNS_DEG = 360 * 10; // 10바퀴
+  let currentDeg = 0;              // 누적 회전 각도 (연속 회전 느낌)
 
-  /* 부채꼴 centroid 반지름 r */
-  const sectorCentroidR = (R, thetaRad) => {
-    const half = thetaRad/2;
-    if (half === 0) return R*0.6;
-    const r = (2*R*Math.sin(half)) / (3*half);
-    return Math.min(R*0.8, Math.max(R*0.35, r)); // 너무 가장자리/중앙 치우침 방지
-  };
+  /* 부채꼴 centroid 반지름 r */
+  const sectorCentroidR = (R, thetaRad) => {
+    const half = thetaRad/2;
+    if (half === 0) return R*0.6;
+    const r = (2*R*Math.sin(half)) / (3*half);
+    return Math.min(R*0.8, Math.max(R*0.35, r)); // 너무 가장자리/중앙 치우침 방지
+  };
 
-  /* 길면 자동 축소 (라벨 덜 굵고 과하지 않게) */
-  function fitFontSize(text, r, thetaRad){
-    const maxSize = 5.0, minSize = 3.0;               // 덜 크고 덜 두껍게
-    const targetWidth = r * thetaRad * 0.82;
-    let size = maxSize;
-    const len = Math.max(1, [...text].length);
-    const charRatio = 0.60;
-    while (size > minSize && len * size * charRatio > targetWidth) size -= 0.2;
-    return size.toFixed(2);
-  }
+  /* 길면 자동 축소 (라벨 덜 굵고 과하지 않게) */
+  function fitFontSize(text, r, thetaRad){
+    const maxSize = 5.0, minSize = 3.0;               // 덜 크고 덜 두껍게
+    const targetWidth = r * thetaRad * 0.82;
+    let size = maxSize;
+    const len = Math.max(1, [...text].length);
+    const charRatio = 0.60;
+    while (size > minSize && len * size * charRatio > targetWidth) size -= 0.2;
+    return size.toFixed(2);
+  }
 
-  /* ===== 휠 그리기 (라벨은 ‘중심→바깥’ 방향으로 배치, 휠과 함께 회전) ===== */
-  function drawWheel(){
-    const n = Math.max(1, items.length);
-    const slice = 360/n;
-    const theta = deg2rad(slice);
-    gSlices.innerHTML = ''; gLabels.innerHTML = '';
+  /* ===== 휠 그리기 (라벨은 ‘중심→바깥’ 방향으로 배치, 휠과 함께 회전) ===== */
+  function drawWheel(){
+    const n = Math.max(1, items.length);
+    const slice = 360/n;
+    const theta = deg2rad(slice);
+    gSlices.innerHTML = ''; gLabels.innerHTML = '';
 
-    for (let i=0;i<n;i++){
-      const start = i*slice - 90;
-      const end   = (i+1)*slice - 90;
-      const large = slice > 180 ? 1 : 0;
+    for (let i=0;i<n;i++){
+      const start = i*slice - 90;
+      const end   = (i+1)*slice - 90;
+      const large = slice > 180 ? 1 : 0;
 
-      const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
-      const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
+      const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
+      const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
 
-      // 조각
-      const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-      p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
-      p.setAttribute('fill', PASTELS[i % PASTELS.length]);
-      gSlices.appendChild(p);
+      // 조각
+      const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
+      p.setAttribute('fill', PASTELS[i % PASTELS.length]);
+      gSlices.appendChild(p);
 
-      // 라벨: 반지름 방향 (중심에서 바깥쪽) — 캔버스 코드 방향성을 SVG로 이식
-      const mid = start + slice/2;
-      const thetaRad = deg2rad(slice);
-      const r = sectorCentroidR(48, thetaRad);
+      // 라벨: 반지름 방향 (중심에서 바깥쪽) — 캔버스 코드 방향성을 SVG로 이식
+      const mid = start + slice/2;
+      const thetaRad = deg2rad(slice);
+      const r = sectorCentroidR(48, thetaRad);
 
-      const label = (items[i] ?? '').toString().trim() || '항목';
-      const fs = fitFontSize(label, r, thetaRad);
+      const label = (items[i] ?? '').toString().trim() || '항목';
+      const fs = fitFontSize(label, r, thetaRad);
 
-      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-      t.setAttribute('text-anchor','middle');
-      t.setAttribute('dominant-baseline','middle');
-      t.setAttribute('font-size', fs);
-      t.setAttribute('font-weight','600');
-      t.setAttribute('fill','#111');
-      // 중심에서 mid만큼 회전 → 반지름 r만큼 이동 (추가 회전 없이 글자가 바깥쪽을 향함)
-      t.setAttribute('transform', `rotate(${mid}) translate(0, -${r})`);
-      t.textContent = label;
-      gLabels.appendChild(t);
-    }
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('text-anchor','middle');
+      t.setAttribute('dominant-baseline','middle');
+      t.setAttribute('font-size', fs);
+      t.setAttribute('font-weight','600');
+      t.setAttribute('fill','#111');
+      // 중심에서 mid만큼 회전 → 반지름 r만큼 이동 (추가 회전 없이 글자가 바깥쪽을 향함)
+      t.setAttribute('transform', `rotate(${mid}) translate(0, -${r})`);
+      t.textContent = label;
+      gLabels.appendChild(t);
+    }
 
-    // 현재 누적 회전 각도로 시각 상태 유지 (입력 변경 시 깜빡임 방지)
-    gSlices.style.transform = `rotate(${currentDeg}deg)`;
-    gLabels.style.transform = `rotate(${currentDeg}deg)`;
-  }
+    // 현재 누적 회전 각도로 시각 상태 유지 (입력 변경 시 깜빡임 방지)
+    gSlices.style.transform = `rotate(${currentDeg}deg)`;
+    gLabels.style.transform = `rotate(${currentDeg}deg)`;
+  }
 
-  /* ===== 입력창 ===== */
-  function rowTemplate(value=''){
-    const row = document.createElement('div');
-    row.className = 'input-row';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.placeholder = '예 : 휴지심';
-    input.value = value;
-    const del = document.createElement('button');
-    del.textContent = '삭제';
-    del.className = 'danger';
-    row.appendChild(input); row.appendChild(del);
+  /* ===== 입력창 ===== */
+  function rowTemplate(value=''){
+    const row = document.createElement('div');
+    row.className = 'input-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = '예 : 휴지심';
+    input.value = value;
+    const del = document.createElement('button');
+    del.textContent = '삭제';
+    del.className = 'danger';
+    row.appendChild(input); row.appendChild(del);
 
-    input.addEventListener('input', syncFromInputs);
-    input.addEventListener('keydown', e=>{
-      if(e.key==='Enter'){ e.preventDefault(); addRow(); }
-    });
-    del.addEventListener('click', ()=>{ row.remove(); syncFromInputs(); });
-    return row;
-  }
-  function renderInputs(){ inputsBox.innerHTML=''; (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v))); }
-  function collectItems(){ return Array.from(inputsBox.querySelectorAll('input')).map(i=>i.value.trim()).filter(Boolean); }
-  function syncFromInputs(){ items = collectItems(); drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다'; }
+    input.addEventListener('input', syncFromInputs);
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); addRow(); }
+    });
+    del.addEventListener('click', ()=>{ row.remove(); syncFromInputs(); });
+    return row;
+  }
+  function renderInputs(){ inputsBox.innerHTML=''; (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v))); }
+  function collectItems(){ return Array.from(inputsBox.querySelectorAll('input')).map(i=>i.value.trim()).filter(Boolean); }
+  function syncFromInputs(){ items = collectItems(); drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다'; }
 
-  function addRow(value=''){ inputsBox.appendChild(rowTemplate(value)); inputsBox.lastChild.querySelector('input').focus(); }
-  btnAdd.addEventListener('click', ()=> addRow());
-  btnClear.addEventListener('click', ()=>{
-    inputsBox.innerHTML=''; items=[]; drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다';
-  });
-  btnReset.addEventListener('click', ()=>{
-    items=["병뚜껑","종이","빨대"]; renderInputs();
-    currentDeg = 0;
-    gSlices.style.transform = `rotate(0deg)`; gLabels.style.transform = `rotate(0deg)`;
-    drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다';
-  });
+  function addRow(value=''){ inputsBox.appendChild(rowTemplate(value)); inputsBox.lastChild.querySelector('input').focus(); }
+  btnAdd.addEventListener('click', ()=> addRow());
+  btnClear.addEventListener('click', ()=>{
+    inputsBox.innerHTML=''; items=[]; drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다';
+  });
 
-  /* ===== 스핀: 캔버스 코드의 누적 회전 로직을 SVG에 적용 =====
-     - 매번 10바퀴 + 선택 섹터 정렬
-     - currentDeg 누적 → 다시 돌려도 동일한 강도로 ‘길게’ 회전  */
-  function spinOnce(){
-    if(isSpinning) return;
-    if(!items.length){ alert('항목을 1개 이상 입력해 주세요.'); return; }
-    isSpinning = true; btnSpin.disabled = true;
+  /* ===== 스핀: 캔버스 코드의 누적 회전 로직을 SVG에 적용 =====
+     - 매번 10바퀴 + 선택 섹터 정렬
+     - currentDeg 누적 → 다시 돌려도 동일한 강도로 ‘길게’ 회전  */
+  function spinOnce(){
+    if(isSpinning) return;
+    if(!items.length){ alert('항목을 1개 이상 입력해 주세요.'); return; }
+    isSpinning = true; btnSpin.disabled = true;
 
-    const n = items.length, slice = 360/n;
-    const pickIndex = Math.floor(Math.random()*n);
-    const mid = pickIndex*slice + slice/2;    // 선택 섹터 중앙각(12시 기준 0=위)
-    const alignToTop = 360 - mid;             // 이 각도로 끝나면 핀이 중앙을 가리킴
+    const n = items.length, slice = 360/n;
+    const pickIndex = Math.floor(Math.random()*n);
+    const mid = pickIndex*slice + slice/2;    // 선택 섹터 중앙각(12시 기준 0=위)
+    const alignToTop = 360 - mid;             // 이 각도로 끝나면 핀이 중앙을 가리킴
 
-    // 현재 각도 기준 보정(모듈러 360) + 10바퀴 누적
-    const need = (alignToTop - (currentDeg % 360) + 360) % 360;
-    const delta = SPIN_TURNS_DEG + need;
-    currentDeg += delta;
+    // 현재 각도 기준 보정(모듈러 360) + 10바퀴 누적
+    const need = (alignToTop - (currentDeg % 360) + 360) % 360;
+    const delta = SPIN_TURNS_DEG + need;
+    currentDeg += delta;
 
-    gSlices.style.transform = `rotate(${currentDeg}deg)`;
-    gLabels.style.transform = `rotate(${currentDeg}deg)`;
+    gSlices.style.transform = `rotate(${currentDeg}deg)`;
+    gLabels.style.transform = `rotate(${currentDeg}deg)`;
 
-    const onEnd = () => {
-      gSlices.removeEventListener('transitionend', onEnd);
-      isSpinning = false; btnSpin.disabled = false;
-      resultEl.textContent = `선택된 재료: ${items[pickIndex]}`;
-    };
-    gSlices.addEventListener('transitionend', onEnd, {once:true});
-  }
-  btnSpin.addEventListener('click', spinOnce);
+    const onEnd = () => {
+      gSlices.removeEventListener('transitionend', onEnd);
+      isSpinning = false; btnSpin.disabled = false;
+      resultEl.textContent = `선택된 재료: ${items[pickIndex]}`;
+    };
+    gSlices.addEventListener('transitionend', onEnd, {once:true});
+  }
+  btnSpin.addEventListener('click', spinOnce);
 
-  /* ===== 초기 렌더 ===== */
-  (function init(){ renderInputs(); drawWheel(); })();
+  /* ===== 초기 렌더 ===== */
+  (function init(){ renderInputs(); drawWheel(); })();
 </script>
 </body>
 </html>
