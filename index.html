@@ -40,7 +40,7 @@
   .primary{background:var(--accent);color:#fff}
   .ghost{background:#eef4ff;color:#3B82F6}
 
-  /* 요청: 삭제/모두삭제 연한 분홍 */
+  /* 삭제/모두삭제 연한 분홍 */
   .danger{
     background:var(--pink-btn);
     color:var(--pink-text);
@@ -137,12 +137,13 @@
     const len = Math.max(1, [...text].length);
     const lineFactor = 1.08; // 한 글자당 차지 높이(em)
     let size = Math.min(maxSize, usable / (len * lineFactor));
-    return Math.max(minSize, Math.min(maxSize, size)).toFixed(2);
+    return { size: Math.max(minSize, Math.min(maxSize, size)), lineFactor };
   }
 
   /* ===== 휠 그리기 =====
      - items가 비어 있으면 연한 회색 원만 표시
      - 텍스트는 세로쓰기, 클리핑/텍스트 길이 강제 없음
+     - 문자열 길이에 따라 "첫 글자 시작 반지름"을 역산해 중앙 정렬
   */
   function drawWheel(){
     const n = items.length;
@@ -185,27 +186,39 @@
 
       // 세로 배치용 반지름 범위 (여유)
       const rCenter = sectorCentroidR(42, theta);
-      const rStart  = Math.max(10, rCenter - 10);
+      const rStart  = Math.max(8, rCenter - 10);
       const rEnd    = Math.min(46, rCenter + 10);
-      const fontSize = fitFontSizeVertical(label, rStart, rEnd);
 
+      // 폰트크기 계산
+      const { size: fontSize, lineFactor } = fitFontSizeVertical(label, rStart, rEnd);
+
+      // 문자열 총 길이 L (세로쓰기에서 바깥쪽 방향 길이)
+      const len = Math.max(1, [...label].length);
+      const L = len * fontSize * lineFactor;
+
+      // 목표 중심에 오도록 첫 글자 시작 반지름 계산
+      const targetCenter = (rStart + rEnd) / 2;
+      let startRadius = targetCenter - L/2;
+
+      // 안전 클램프: 원 경계 안쪽에서만 표시
+      startRadius = Math.max(6, Math.min(46 - L, startRadius));
+
+      // 그룹: 각도만 회전, 이동은 텍스트 y로 처리
       const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-      // 섹션 중앙각만큼 회전 → 라벨 중심 반지름 위치로 이동
-      g.setAttribute('transform', `rotate(${mid}) translate(0, -${(rStart+rEnd)/2})`);
+      g.setAttribute('transform', `rotate(${mid})`);
 
       const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-      t.setAttribute('text-anchor','middle');
-      t.setAttribute('dominant-baseline','middle');
-      t.setAttribute('font-size', fontSize);
+      t.setAttribute('text-anchor','middle');      // 가로 중앙
+      t.setAttribute('font-size', fontSize.toFixed(2));
       t.setAttribute('font-weight','700');
       t.setAttribute('fill','#111');
-      t.style.writingMode = 'vertical-rl';          // 세로(중심→바깥)
+      t.style.writingMode = 'vertical-rl';         // 세로(중심→바깥)
       t.style.glyphOrientationVertical = '0';
-      // 가독성 보조(얇은 외곽선) - 선택 사항
-      t.style.paintOrder = 'stroke fill';
-      t.setAttribute('stroke', 'rgba(255,255,255,.5)');
-      t.setAttribute('stroke-width', '0.25');
 
+      // 외곽선(하얀 라인) 제거 요청: stroke 관련 설정 없음
+
+      t.setAttribute('x', '0');
+      t.setAttribute('y', (-startRadius).toFixed(2)); // 바깥쪽으로 진행하므로 음수
       t.textContent = label;
 
       g.appendChild(t);
