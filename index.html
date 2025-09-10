@@ -6,7 +6,7 @@
 <title>dodori LAB</title>
 <style>
   :root{
-    --accent:#3B82F6;                 /* 핀/버튼 포인트 컬러 */
+    --accent:#3B82F6;
     --bg:#f6f7f9; --card:#fff; --ink:#111; --line:#e5e7eb;
   }
   *{box-sizing:border-box}
@@ -14,7 +14,6 @@
   .wrap{max-width:980px;margin:0 auto;padding:28px 16px}
 
   .overline{font-size:12px;letter-spacing:.02em;color:#6b7280;text-align:center;margin-bottom:4px}
-
   h1{margin:8px 0 22px;font-size:32px;text-align:center;color:#000}
 
   .grid{display:grid;gap:20px}
@@ -23,7 +22,7 @@
   .card{background:var(--card);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden}
   .pad{padding:20px}
 
-  /* 휠 (반응형 상한) */
+  /* 휠 */
   .wheel-box{width:min(92vw,520px);margin:0 auto;}
   .wheel-wrap{position:relative;width:100%;aspect-ratio:1/1;}
   svg{width:100%;height:100%;display:block}
@@ -37,8 +36,14 @@
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
   button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
   .primary{background:var(--accent);color:#fff}
-  .ghost{background:#eef4ff;color:var(--accent)}
-  .danger{background:#ef4444;color:#fff}
+
+  /* 요청: 삭제/모두삭제 연분홍 */
+  .danger{
+    background:#FBCFE8;           /* 연분홍 */
+    color:#9D174D;                 /* 선명한 루비 텍스트 */
+  }
+
+  .ghost{background:#eef4ff;color:#3B82F6}
 
   .result{font-weight:700;font-size:20px;margin:16px 0 0;text-align:center}
 
@@ -47,7 +52,7 @@
   .input-row{display:flex;gap:8px}
   .input-row input{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit}
 
-  /* 회전 트랜지션: 네 코드와 동일한 감속곡선/시간 */
+  /* 회전 트랜지션 */
   .spin-transition{transition:transform 4s cubic-bezier(0.2,0.8,0.2,1)}
 </style>
 </head>
@@ -72,7 +77,6 @@
 
       <div class="row">
         <button id="spin" class="primary">돌리기</button>
-        <!-- '처음 상태로' 버튼 제거됨 -->
       </div>
       <div id="result" class="result">선택된 재료가 여기에 표시됩니다</div>
     </div>
@@ -90,8 +94,7 @@
 </div>
 
 <script>
-  /* ===== 상수/유틸 ===== */
-  const PASTELS = ['#D9ECFF','#FFE4EA','#FFF6C9','#DDF8EA','#E9D8FD','#FFE8CC']; // 하늘·핑크·바나나·민트·라벤더·피치
+  /* ===== 유틸 ===== */
   const deg2rad = d => d * Math.PI / 180;
 
   /* ===== 전역 상태/DOM ===== */
@@ -104,45 +107,54 @@
   const btnAdd    = document.getElementById('add');
   const btnClear  = document.getElementById('clear');
 
-  // 기본 항목에 '멸균팩' 추가
+  // 기본 항목 (멸균팩 포함)
   let items = ["병뚜껑","종이","빨대","멸균팩"];
   let isSpinning = false;
 
-  /* 캔버스 코드의 ‘누적 회전’ 방식 */
-  const SPIN_TURNS_DEG = 360 * 10; // 10바퀴
-  let currentDeg = 0;              // 누적 회전 각도 (연속 회전 느낌)
+  /* 누적 회전 */
+  const SPIN_TURNS_DEG = 360 * 10;
+  let currentDeg = 0;
 
-  /* 부채꼴 centroid 반지름 r */
+  /* 파스텔 팔레트: 항목 수에 맞춰 겹치지 않게 균등 분포 */
+  function pastelHSL(i, n){
+    const h = Math.round((360 * i) / n);      // 고르게 분산
+    const s = 70;                              // 파스텔 채도
+    const l = 85;                              // 파스텔 명도
+    return `hsl(${h} ${s}% ${l}%)`;
+  }
+
+  /* 섹터 중심 반지름 (텍스트는 조금 더 안쪽에서 배치) */
   const sectorCentroidR = (R, thetaRad) => {
     const half = thetaRad/2;
     if (half === 0) return R*0.6;
     const r = (2*R*Math.sin(half)) / (3*half);
-    return Math.min(R*0.8, Math.max(R*0.4, r)); // 중심~가장자리 사이 적절 지점
+    return Math.min(R*0.82, Math.max(R*0.38, r));
   };
 
-  /* 라벨 폭에 맞게 폰트크기 자동 조정 + 초과 시 더 줄이기 */
-  function fitFontSize(text, radius, thetaRad){
-    const maxSize = 5.2, minSize = 2.6;
-    // 섹션 내부에서 실제로 쓸 수 있는 최대 폭(호 길이 vs 현 길이 중 작은 값)
-    const arcW  = radius * thetaRad;
-    const chord = 2 * radius * Math.sin(thetaRad/2);
-    const targetWidth = Math.max(14, Math.min(arcW, chord) * 0.86);
-
-    let size = maxSize;
+  /* 세로(중심→바깥) 배치용 폰트 크기 계산
+     - 이용 가능한 반지름 길이 안에 글자 수만큼 들어가도록 size 계산 */
+  function fitFontSizeVertical(text, rStart, rEnd){
+    const maxSize = 5.5, minSize = 2.4;
+    const usable  = Math.max(10, rEnd - rStart); // 사용 가능한 길이
     const len = Math.max(1, [...text].length);
-    const charRatio = 0.58; // 한 글자 폭 대비 폰트 크기 비율
-    while (size > minSize && len * size * charRatio > targetWidth) size -= 0.2;
-    return { fontSize: size.toFixed(2), targetWidth };
+    const lineFactor = 1.05; // 한 글자당 차지하는 높이(em)
+    let size = Math.min(maxSize, usable / (len * lineFactor));
+    size = Math.max(minSize, Math.min(maxSize, size));
+    return size.toFixed(2);
   }
 
   /* ===== 휠 그리기 =====
-     - 라벨은 각 섹션의 '정중앙(각/반지름)'에 배치
-     - 글자는 수평(가독성↑), overflow는 clipPath로 잘라 벗어나지 않게 보장 */
+     - 텍스트를 '회전축(반지름) 방향'으로 세로 배치 (중심→바깥)
+     - 클리핑으로 섹션 밖 시각 노출 방지
+  */
   function drawWheel(){
     const n = Math.max(1, items.length);
     const slice = 360/n;
     const theta = deg2rad(slice);
-    gSlices.innerHTML = ''; gLabels.innerHTML = ''; clipDefs.innerHTML = '';
+
+    gSlices.innerHTML = '';
+    gLabels.innerHTML = '';
+    clipDefs.innerHTML = '';
 
     for (let i=0;i<n;i++){
       const start = i*slice - 90;
@@ -152,21 +164,13 @@
       const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
       const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
 
-      // 조각
+      // 조각 (색상: 겹치지 않도록 HSL 분포)
       const p = document.createElementNS('http://www.w3.org/2000/svg','path');
       p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
-      p.setAttribute('fill', PASTELS[i % PASTELS.length]);
+      p.setAttribute('fill', pastelHSL(i,n));
       gSlices.appendChild(p);
 
-      // 라벨 배치 값
-      const mid = start + slice/2;          // 섹션 중앙 각도(12시 기준)
-      const thetaRad = deg2rad(slice);
-      const r = sectorCentroidR(38, thetaRad); // 텍스트는 조금 더 안쪽 반지름 사용(오버플로 방지)
-
-      const label = (items[i] ?? '').toString().trim() || '항목';
-      const { fontSize, targetWidth } = fitFontSize(label, r, thetaRad);
-
-      // 이 섹션 전용 clipPath (텍스트가 절대 섹션 밖으로 안 보이게)
+      // clipPath (섹션 밖으로 보이지 않게)
       const clipId = `clip-${i}`;
       const clip = document.createElementNS('http://www.w3.org/2000/svg','clipPath');
       clip.setAttribute('id', clipId);
@@ -175,42 +179,38 @@
       clip.appendChild(clipPath);
       clipDefs.appendChild(clip);
 
-      // 라벨 그룹: 중앙 각도로 회전 → 반지름 r만큼 이동 → 다시 -mid로 역회전해 텍스트 수평 유지
+      // 라벨 배치
+      const mid = start + slice/2;     // 섹션 중앙각
+      const label = (items[i] ?? '').toString().trim() || '항목';
+
+      // 세로 배치용 반지름 범위 (조금 여유)
+      const rCenter = sectorCentroidR(42, deg2rad(slice));
+      const rStart  = Math.max(10, rCenter - 10);
+      const rEnd    = Math.min(46, rCenter + 10);
+
+      const fontSize = fitFontSizeVertical(label, rStart, rEnd);
+
       const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-      g.setAttribute('transform', `rotate(${mid}) translate(0, -${r}) rotate(${-mid})`);
+      // mid만큼 회전 → 중앙 반지름으로 이동 → (세로 글자라 추가 역회전 없이 그대로)
+      g.setAttribute('transform', `rotate(${mid}) translate(0, -${(rStart+rEnd)/2})`);
       g.setAttribute('clip-path', `url(#${clipId})`);
 
-      // 배경 가독성(선택): 흐린 그림자
-      const shadow = document.createElementNS('http://www.w3.org/2000/svg','text');
-      shadow.setAttribute('text-anchor','middle');
-      shadow.setAttribute('dominant-baseline','middle');
-      shadow.setAttribute('font-size', fontSize);
-      shadow.setAttribute('font-weight','700');
-      shadow.setAttribute('fill','rgba(0,0,0,0.10)');
-      shadow.setAttribute('x','0'); shadow.setAttribute('y','0.4');
-      shadow.textContent = label;
-      g.appendChild(shadow);
-
-      // 실제 라벨
+      // 실제 라벨 (세로쓰기, 중앙정렬)
       const t = document.createElementNS('http://www.w3.org/2000/svg','text');
       t.setAttribute('text-anchor','middle');
       t.setAttribute('dominant-baseline','middle');
       t.setAttribute('font-size', fontSize);
       t.setAttribute('font-weight','600');
       t.setAttribute('fill','#111');
-
-      // 폭 제한: 중앙 정렬 유지하면서 가용폭 내에서만 렌더
-      // textLength 사용은 글자 왜곡 가능성이 있어 기본은 폰트크기로 맞추고,
-      // 혹시라도 약간 넘칠 상황엔 글자 간격으로만 미세 조정
-      t.setAttribute('lengthAdjust','spacing');
-      t.setAttribute('textLength', (targetWidth).toFixed(2));
-
+      t.style.writingMode = 'vertical-rl';           // 세로(중심→바깥)
+      t.style.glyphOrientationVertical = '0';        // 글립 수평 회전 방지
       t.textContent = label;
+
       g.appendChild(t);
       gLabels.appendChild(g);
     }
 
-    // 현재 누적 회전 각도로 시각 상태 유지 (입력 변경 시 깜빡임 방지)
+    // 현재 누적 회전 유지
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
   }
@@ -245,7 +245,7 @@
     inputsBox.innerHTML=''; items=[]; drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다';
   });
 
-  /* ===== 스핀: 누적 회전 로직 ===== */
+  /* ===== 스핀: 누적 회전 ===== */
   function spinOnce(){
     if(isSpinning) return;
     if(!items.length){ alert('항목을 1개 이상 입력해 주세요.'); return; }
@@ -253,10 +253,9 @@
 
     const n = items.length, slice = 360/n;
     const pickIndex = Math.floor(Math.random()*n);
-    const mid = pickIndex*slice + slice/2;    // 선택 섹터 중앙각(12시 기준 0=위)
-    const alignToTop = 360 - mid;             // 이 각도로 끝나면 핀이 중앙을 가리킴
+    const mid = pickIndex*slice + slice/2;
+    const alignToTop = 360 - mid;
 
-    // 현재 각도 기준 보정(모듈러 360) + 10바퀴 누적
     const need = (alignToTop - (currentDeg % 360) + 360) % 360;
     const delta = SPIN_TURNS_DEG + need;
     currentDeg += delta;
