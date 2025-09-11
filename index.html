@@ -95,11 +95,11 @@
   /* ===== 유틸 ===== */
   const deg2rad = d => d * Math.PI / 180;
 
-  /* 파스텔 팔레트: 겹치지 않게 균등 분포 (레거시 hsl 표기) */
+  /* 파스텔 팔레트: 균등 분포 (레거시 hsl 표기) */
   function pastelHSL(i, n){
     const h = Math.round((360 * i) / n);
     const s = 70, l = 85;
-    return `hsl(${h}, ${s}%, ${l}%)`;   // ← 공백 구분 대신 쉼표 구분
+    return `hsl(${h}, ${s}%, ${l}%)`;
   }
 
   /* 섹터 중심 반지름 (텍스트는 조금 더 안쪽) */
@@ -134,6 +134,7 @@
     gLabels.innerHTML = '';
 
     if(n === 0){
+      // 항목 없을 때 연회색 원 유지
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       circle.setAttribute('cx','0'); circle.setAttribute('cy','0'); circle.setAttribute('r','48');
       circle.setAttribute('fill','#E5E7EB');
@@ -154,11 +155,13 @@
       const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
       const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
 
+      // 조각
       const p = document.createElementNS('http://www.w3.org/2000/svg','path');
       p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
       p.setAttribute('fill', pastelHSL(i,n));
       gSlices.appendChild(p);
 
+      // 라벨 (세로쓰기, 문자열 길이에 맞춰 중앙 정렬)
       const mid = start + slice/2;
       const label = (items[i] ?? '').toString().trim() || '항목';
 
@@ -247,19 +250,22 @@
     inputsBox.lastChild.querySelector('input').focus();
   }
 
+  /* ==== 스핀: 누적 회전 + 최종 각도로 역산 ==== */
   function spinOnce(){
     if(isSpinning) return;
     if(!items.length){ alert('항목을 1개 이상 입력해 주세요.'); return; }
     isSpinning = true; btnSpin.disabled = true;
 
-    const n = items.length, slice = 360/n;
-    const pickIndex = Math.floor(Math.random()*n);
-    const mid = pickIndex*slice + slice/2;
-    const alignToTop = 360 - mid;
+    const n = items.length;
+    const slice = 360/n;
 
+    // 랜덤 목표 섹션 하나 선택 → 그 섹션의 중앙이 핀(12시) 아래로 오도록 회전량 계산
+    const targetIndex = Math.floor(Math.random()*n);
+    const mid = targetIndex*slice + slice/2; // 12시 기준 중앙각(우리가 그린 기준: -90 offset 고려)
+    const alignToTop = 360 - mid;
     const need = (alignToTop - (currentDeg % 360) + 360) % 360;
-    const delta = SPIN_TURNS_DEG + need;
-    currentDeg += delta;
+
+    currentDeg += SPIN_TURNS_DEG + need;
 
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
@@ -267,43 +273,39 @@
     const onEnd = () => {
       gSlices.removeEventListener('transitionend', onEnd);
       isSpinning = false; btnSpin.disabled = false;
-      resultEl.textContent = `선택된 재료: ${items[pickIndex]}`;
+
+      // ✅ 실제 최종 각도로 핀이 가리키는 섹션을 역산 (보이는 것과 100% 일치)
+      const final = (currentDeg % 360 + 360) % 360;          // 0~359
+      const pointerLocal = (360 - final + 90 + 360) % 360;   // 12시=0 보정
+      const idx = Math.floor(pointerLocal / slice) % n;
+
+      resultEl.textContent = `선택된 재료: ${items[idx]}`;
     };
     gSlices.addEventListener('transitionend', onEnd, {once:true});
   }
 
-  /* ===== 안전한 초기화 ===== */
+  /* ===== 안전 초기화 ===== */
   window.addEventListener('DOMContentLoaded', () => {
-    try{
-      gSlices   = document.getElementById('slices');
-      gLabels   = document.getElementById('labels');
-      inputsBox = document.getElementById('inputs');
-      resultEl  = document.getElementById('result');
-      btnSpin   = document.getElementById('spin');
-      btnAdd    = document.getElementById('add');
-      btnClear  = document.getElementById('clear');
+    gSlices   = document.getElementById('slices');
+    gLabels   = document.getElementById('labels');
+    inputsBox = document.getElementById('inputs');
+    resultEl  = document.getElementById('result');
+    btnSpin   = document.getElementById('spin');
+    btnAdd    = document.getElementById('add');
+    btnClear  = document.getElementById('clear');
 
-      btnAdd.addEventListener('click', ()=> addRow());
-      btnClear.addEventListener('click', ()=>{
-        items = [];
-        inputsBox.innerHTML = '';
-        addRow('');
-        drawWheel();
-        resultEl.textContent='선택된 재료가 여기에 표시됩니다';
-      });
-      btnSpin.addEventListener('click', spinOnce);
+    btnAdd.addEventListener('click', ()=> addRow());
+    btnClear.addEventListener('click', ()=>{
+      items = [];
+      inputsBox.innerHTML = '';
+      addRow('');     // 빈 입력 1개 남김
+      drawWheel();    // 회색 원 유지
+      resultEl.textContent='선택된 재료가 여기에 표시됩니다';
+    });
+    btnSpin.addEventListener('click', spinOnce);
 
-      renderInputs();
-      drawWheel();
-    }catch(e){
-      // 에러가 나도 페이지가 빈 화면이 되지 않도록 최소한의 UI 확보
-      console.error(e);
-      if (inputsBox && inputsBox.children.length === 0) {
-        const fallback = document.createElement('div');
-        fallback.textContent = '항목을 입력해 주세요';
-        inputsBox.appendChild(fallback);
-      }
-    }
+    renderInputs();
+    drawWheel();
   });
 </script>
 </body>
