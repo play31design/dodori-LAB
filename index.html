@@ -8,8 +8,8 @@
   :root{
     --accent:#3B82F6;
     --bg:#f6f7f9; --card:#fff; --ink:#111; --line:#e5e7eb;
-    --pink-btn:#FDE7EF;   /* 연한 분홍 */
-    --pink-text:#9D174D;  /* 와인 텍스트 */
+    --pink-btn:#FDE7EF;  /* 연한 분홍 */
+    --pink-text:#9D174D; /* 와인 텍스트 */
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -40,9 +40,7 @@
   button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
   .primary{background:var(--accent);color:#fff}
   .ghost{background:#eef4ff;color:#3B82F6}
-
-  /* 삭제/모두삭제 연한 분홍 */
-  .danger{ background:var(--pink-btn); color:var(--pink-text); }
+  .danger{background:var(--pink-btn);color:var(--pink-text)} /* 연분홍 버튼 */
 
   .result{font-weight:700;font-size:20px;margin:16px 0 0;text-align:center}
 
@@ -92,17 +90,17 @@
 </div>
 
 <script>
-  /* ===== 유틸 ===== */
+  /* ===== 유틸 & 전역 ===== */
   const deg2rad = d => d * Math.PI / 180;
 
-  /* 파스텔 팔레트: 균등 분포 (레거시 hsl 표기) */
+  // 균등 분포 파스텔 (레거시 hsl 표기: 구형 Safari 호환)
   function pastelHSL(i, n){
     const h = Math.round((360 * i) / n);
     const s = 70, l = 85;
     return `hsl(${h}, ${s}%, ${l}%)`;
   }
 
-  /* 섹터 중심 반지름 (텍스트는 조금 더 안쪽) */
+  // 섹션의 기하학적 중심 반지름 근사 (조금 안쪽으로 클램프)
   const sectorCentroidR = (R, thetaRad) => {
     const half = thetaRad/2;
     if (half === 0) return R*0.6;
@@ -110,43 +108,49 @@
     return Math.min(R*0.82, Math.max(R*0.38, r));
   };
 
-  /* ===== 상태/DOM ===== */
   let gSlices, gLabels, inputsBox, resultEl, btnSpin, btnAdd, btnClear;
-  let items = ["병뚜껑","종이","빨대","멸균팩"];
+  let items = ["병뚜껑","종이","빨대","멸균팩"];  // 기본 항목에 멸균팩 포함
   let isSpinning = false;
   const SPIN_TURNS_DEG = 360 * 10;
   let currentDeg = 0;
 
-  /* 각 섹션 라벨: 문자열 중심 고정 + 첫 글자 바깥쪽 */
+  /* ===== 라벨: 문자열 '중심' 고정 + 반원별 진행방향 보정 =====
+     - 중앙 반지름(targetCenter)에 문자열 중앙을 정확히 고정
+     - 오른쪽 반원(코사인>0): 첫 글자가 바깥쪽(핀 방향)
+       왼쪽 반원(코사인<0): 첫 글자가 안쪽으로 오도록 '진행방향만' 뒤집기
+     - 폰트는 경계(6~46) 안으로 자동 축소
+  */
   function drawCenteredVerticalLabel(group, textStr, midDeg, targetCenter, innerBound, outerBound){
     const len = Math.max(1, [...textStr].length);
     const lineFactor = 1.08;
-    const maxSize = 5.5, minSize = 2.6;
+    const MAX=5.5, MIN=2.6;
 
-    // 바깥/안쪽 여유(중앙에서 경계까지의 최소 거리)
-    const maxHalfRadial = Math.max(1, Math.min(targetCenter - innerBound, outerBound - targetCenter));
+    // 중앙에서 경계까지의 여유(반경 절반폭)
+    const maxHalf = Math.max(1, Math.min(targetCenter - innerBound, outerBound - targetCenter));
 
-    // len==1이면 step=0이어도 됨. len>1이면 (len-1)*step <= 2*maxHalfRadial
-    let fontSize = maxSize;
+    // 폰트 상한: (len-1)*step <= 2*maxHalf
+    let size = MAX;
     if (len > 1){
-      const limitBySpan = (2 * maxHalfRadial) / ((len - 1) * lineFactor);
-      fontSize = Math.min(fontSize, limitBySpan);
+      size = Math.min(size, (2*maxHalf)/((len-1)*lineFactor));
     }
-    fontSize = Math.max(minSize, Math.min(maxSize, fontSize));
-    const step = fontSize * lineFactor;
+    size = Math.max(MIN, Math.min(MAX, size));
+    const step = size * lineFactor;
 
-    // 중앙 기준 시작 반경: 문자열 전체 길이의 중앙이 targetCenter가 되도록
+    // 중앙 고정 시작 반경
     const start = targetCenter - ((len - 1) / 2) * step;
 
-    // 그룹: 섹션 중앙각으로만 회전
+    // 오른쪽/왼쪽 반원에 따라 진행 방향 결정
+    const outwardSign = (Math.cos(deg2rad(midDeg)) >= 0) ? +1 : -1;
+
+    // 그룹: 섹션 중앙각만 적용
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('transform', `rotate(${midDeg})`);
     group.appendChild(g);
 
-    // 문자별 tspan (첫 글자가 바깥쪽으로 가도록 역순 배치)
+    // 문자별 tspan
     const t = document.createElementNS('http://www.w3.org/2000/svg','text');
     t.setAttribute('text-anchor','middle');
-    t.setAttribute('font-size', fontSize.toFixed(2));
+    t.setAttribute('font-size', size.toFixed(2));
     t.setAttribute('font-weight','700');
     t.setAttribute('fill','#111');
 
@@ -154,8 +158,10 @@
     for(let i=0;i<len;i++){
       const span = document.createElementNS('http://www.w3.org/2000/svg','tspan');
       span.setAttribute('x','0');
-      // 0번째 글자가 가장 바깥쪽(핀 방향)으로 가도록 (len-1-i)
-      const y = -( start + (len - 1 - i) * step );
+      // outwardSign=+1(오른쪽 반원): 0번째가 바깥쪽 => (len-1-i)
+      // outwardSign=-1(왼쪽 반원)    : 0번째가 안쪽    => (i)
+      const k = (outwardSign === 1) ? (len - 1 - i) : i;
+      const y = -( start + k * step );
       span.setAttribute('y', y.toFixed(2));
       span.textContent = chars[i];
       t.appendChild(span);
@@ -163,13 +169,14 @@
     g.appendChild(t);
   }
 
+  /* ===== 휠 그리기 ===== */
   function drawWheel(){
     const n = items.length;
     gSlices.innerHTML = '';
     gLabels.innerHTML = '';
 
     if(n === 0){
-      // 항목 없을 때 연회색 원 유지
+      // 항목 없을 때 연한 회색 원만 유지
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       circle.setAttribute('cx','0'); circle.setAttribute('cy','0'); circle.setAttribute('r','48');
       circle.setAttribute('fill','#E5E7EB');
@@ -196,27 +203,24 @@
       p.setAttribute('fill', pastelHSL(i,n));
       gSlices.appendChild(p);
 
-      // 라벨 (문자열 중심을 반지름 중앙에 고정)
+      // 라벨
       const mid = start + slice/2;
       const label = (items[i] ?? '').toString().trim() || '항목';
 
-      // 반지름 중앙/경계
-      const rCenter = sectorCentroidR(42, theta);        // 섹션의 기하학적 중심 근처
-      const innerBound = 6;                               // 너무 안쪽은 피함
-      const outerBound = 46;                              // 원 경계선 바로 안쪽
+      const rCenter = sectorCentroidR(42, theta);
+      const innerBound = 6, outerBound = 46;
       const targetCenter = Math.max(innerBound+2, Math.min(outerBound-2, rCenter));
 
       drawCenteredVerticalLabel(gLabels, label, mid, targetCenter, innerBound, outerBound);
     }
 
+    // 누적 회전 유지(입력 변경 시 시각상태 보존)
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
   }
 
   /* ===== 입력창 ===== */
-  function ensureOneRow(){
-    if (inputsBox.children.length === 0) addRow('');
-  }
+  function ensureOneRow(){ if (inputsBox.children.length === 0) addRow(''); }
 
   function rowTemplate(value=''){
     const row = document.createElement('div');
@@ -235,36 +239,30 @@
       if(e.key==='Enter'){ e.preventDefault(); addRow(); }
     });
     del.addEventListener('click', ()=>{
-      row.remove();
-      ensureOneRow();
-      syncFromInputs();
+      row.remove(); ensureOneRow(); syncFromInputs();
     });
     return row;
   }
-
   function renderInputs(){
     inputsBox.innerHTML='';
     (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v)));
   }
-
   function collectItems(){
     return Array.from(inputsBox.querySelectorAll('input'))
       .map(i=>i.value.trim())
       .filter(Boolean);
   }
-
   function syncFromInputs(){
     items = collectItems();
     drawWheel();
     resultEl.textContent = '선택된 재료가 여기에 표시됩니다';
   }
-
   function addRow(value=''){
     inputsBox.appendChild(rowTemplate(value));
     inputsBox.lastChild.querySelector('input').focus();
   }
 
-  /* ==== 스핀: 누적 회전 + 최종 각도로 역산 ==== */
+  /* ===== 스핀: 누적 회전 + 최종 각도로 역산(결과와 시각 완전 일치) ===== */
   function spinOnce(){
     if(isSpinning) return;
     if(!items.length){ alert('항목을 1개 이상 입력해 주세요.'); return; }
@@ -273,7 +271,6 @@
     const n = items.length;
     const slice = 360/n;
 
-    // 랜덤 목표 섹션 하나 선택 → 그 섹션의 중앙이 핀(12시) 아래로 오도록 회전량 계산
     const targetIndex = Math.floor(Math.random()*n);
     const mid = targetIndex*slice + slice/2;
     const alignToTop = 360 - mid;
@@ -288,9 +285,8 @@
       gSlices.removeEventListener('transitionend', onEnd);
       isSpinning = false; btnSpin.disabled = false;
 
-      // 실제 최종 각도로 핀이 가리키는 섹션을 역산
-      const final = (currentDeg % 360 + 360) % 360;          // 0~359
-      const pointerLocal = (360 - final + 90 + 360) % 360;   // 12시=0 보정
+      const final = (currentDeg % 360 + 360) % 360;         // 0~359
+      const pointerLocal = (360 - final + 90 + 360) % 360;  // 12시=0 보정
       const idx = Math.floor(pointerLocal / slice) % n;
 
       resultEl.textContent = `선택된 재료: ${items[idx]}`;
@@ -298,7 +294,7 @@
     gSlices.addEventListener('transitionend', onEnd, {once:true});
   }
 
-  /* ===== 안전 초기화 ===== */
+  /* ===== 초기화 ===== */
   window.addEventListener('DOMContentLoaded', () => {
     gSlices   = document.getElementById('slices');
     gLabels   = document.getElementById('labels');
@@ -312,8 +308,8 @@
     btnClear.addEventListener('click', ()=>{
       items = [];
       inputsBox.innerHTML = '';
-      addRow('');     // 빈 입력 1개 남김
-      drawWheel();    // 회색 원 유지
+      addRow('');          // 빈 입력 1칸 남김
+      drawWheel();         // 회색 원 유지
       resultEl.textContent='선택된 재료가 여기에 표시됩니다';
     });
     btnSpin.addEventListener('click', spinOnce);
