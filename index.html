@@ -9,9 +9,9 @@
     --accent:#a4886d;          /* 버튼/핀/외곽선 색 */
     --bg:#f8f2ed;              /* 페이지 배경 */
     --card:#fff;
-    --ink:#6d4f34;             /* ✅ 주요 텍스트 색 */
-    --line:#e5e7eb;
-    --pink-btn:#FDE7EF;
+    --ink:#6d4f34;             /* 주요 텍스트 색 */
+    --line:#a4886d;            /* ✅ 입력창 라인 색상 */
+    --pink-btn:#FEEFF5;        /* ✅ 삭제 버튼 색상 (더 연한 분홍) */
     --pink-text:#9D174D;
   }
   *{box-sizing:border-box}
@@ -61,7 +61,7 @@
   button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
   .primary{background:var(--accent);color:#fff}
   .ghost{background:#eef4ff;color:#3B82F6}
-  .danger{background:var(--pink-btn);color:var(--pink-text)}
+  .danger{background:var(--pink-btn);color:var(--pink-text)} /* ✅ 연분홍 버튼 */
 
   /* 결과 영역 */
   .result{
@@ -70,24 +70,23 @@
     text-align:center;
     color:var(--ink);
   }
-  .result .label{
-    font-weight:400;     /* 얇게 */
-    margin-right:4px;
-  }
-  .result .value{
-    font-weight:700;     /* 볼드 */
-  }
+  .result .label{font-weight:400;margin-right:4px;}
+  .result .value{font-weight:700;}
 
   .inputs-title{
     margin:0 0 6px;
     font-size:18px;
     color:var(--ink);
-    text-align:center;   /* ✅ 가운데 정렬 */
+    text-align:center;
   }
   .inputs{display:flex;flex-direction:column;gap:8px;margin-top:10px}
   .input-row{display:flex;gap:8px}
   .input-row input{
-    flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;
+    flex:1;
+    border:1px solid var(--line);  /* ✅ a4886d 색상 */
+    border-radius:10px;
+    padding:10px 12px;
+    font:inherit;
     color:var(--ink);
   }
 
@@ -220,13 +219,11 @@
       drawChordAlignedLabelFixed(gLabels, items[i], mid, theta, rLabel);
     }
 
-    // 외곽선
     const outline=document.createElementNS('http://www.w3.org/2000/svg','circle');
     outline.setAttribute('r','48'); outline.setAttribute('fill','none');
     outline.setAttribute('stroke','#a4886d'); outline.setAttribute('stroke-width','1.0');
     gBorders.appendChild(outline);
 
-    // 경계선
     const borderColor='#b9a28b';
     for(let i=0;i<n;i++){
       const ang=deg2rad(i*slice-90);
