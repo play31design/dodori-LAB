@@ -6,10 +6,10 @@
 <title>dodori LAB</title>
 <style>
   :root{
-    --accent:#3B82F6;
-    --bg:#f6f7f9; --card:#fff; --ink:#111; --line:#e5e7eb;
-    --pink-btn:#FDE7EF;
-    --pink-text:#9D174D;
+    --accent:#a4886d;                /* ✅ 버튼/핀 색상 */
+    --bg:#f8f2ed;                    /* ✅ 페이지 배경 */
+    --card:#fff; --ink:#111; --line:#e5e7eb;
+    --pink-btn:#FDE7EF; --pink-text:#9D174D;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -17,9 +17,7 @@
 
   .overline{font-size:12px;letter-spacing:.02em;color:#6b7280;text-align:center;margin-bottom:4px}
   h1{margin:8px 0 22px;font-size:32px;text-align:center;color:#000}
-  @media (max-width:480px){
-    h1{font-size:26px;} /* ✅ 모바일에서 타이틀 글자 크기 줄임 */
-  }
+  @media (max-width:480px){ h1{font-size:26px} } /* 모바일 타이틀 살짝 축소 */
 
   .grid{display:grid;gap:20px}
   @media(min-width:900px){.grid{grid-template-columns:560px 1fr}}
@@ -34,14 +32,15 @@
   svg{width:100%;height:100%;display:block}
   #slices,#labels{transform-box:fill-box;transform-origin:50% 50%}
 
-  /* 상단 핀 */
+  /* 상단 핀(삼각형) */
   .pin{position:absolute;left:50%;transform:translateX(-50%);top:-4px;width:0;height:0;
        border-left:14px solid transparent;border-right:14px solid transparent;
-       border-top:24px solid var(--accent);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+       border-top:24px solid var(--accent); /* ✅ 핀 색상 변경 */
+       filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
 
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
   button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
-  .primary{background:var(--accent);color:#fff}
+  .primary{background:var(--accent);color:#fff}    /* ✅ 버튼 색상 변경 */
   .ghost{background:#eef4ff;color:#3B82F6}
   .danger{background:var(--pink-btn);color:var(--pink-text)}
 
@@ -92,11 +91,18 @@
 </div>
 
 <script>
+  /* ===== 유틸 & 전역 ===== */
   const deg2rad = d => d * Math.PI / 180;
-  function pastelHSL(i, n){
-    const h = Math.round((360 * i) / n);
-    return `hsl(${h},70%,85%)`;
+
+  // ✅ 톤온톤 베이지 팔레트: #f8f2ed 기반으로 밝기만 달리
+  // hsl(28°, 45%, L%) 계열의 5-스텝 라이트니스 (인접 구간만 미묘하게 다르게 보이도록)
+  function wheelTone(i){
+    const levels = [95, 91, 87, 93, 89];        // 라이트니스 %
+    const L = levels[i % levels.length];
+    return `hsl(28, 45%, ${L}%)`;
   }
+
+  // 섹션 기하학적 중심 반지름 근사
   const sectorCentroidR = (R, thetaRad) => {
     const half = thetaRad/2;
     if (half === 0) return R*0.6;
@@ -111,7 +117,7 @@
   let currentDeg = 0;
   let lastPickIndex = -1;
 
-  /* ===== 라벨: 현과 평행 + 중앙 ===== */
+  /* ===== 라벨: 현과 평행 + 중앙, 가독성 중간 굵기 ===== */
   function drawChordAlignedLabelFixed(group, textStr, midDeg, thetaRad, r){
     const PADDING   = 2.0;
     const FONT_BASE = 5.0;
@@ -136,7 +142,7 @@
     const t = document.createElementNS('http://www.w3.org/2000/svg','text');
     t.setAttribute('text-anchor','middle');
     t.setAttribute('dominant-baseline','middle');
-    t.setAttribute('font-weight','600'); /* ✅ 덜 두껍게 */
+    t.setAttribute('font-weight','600'); /* 조금 덜 무겁게 */
     t.setAttribute('fill','#111');
     t.setAttribute('font-size', fontSize.toFixed(2));
     t.setAttribute('x','0');
@@ -151,32 +157,41 @@
     const n = items.length;
     gSlices.innerHTML = '';
     gLabels.innerHTML = '';
+
     if(n === 0){
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      circle.setAttribute('r','48');
+      circle.setAttribute('cx','0'); circle.setAttribute('cy','0'); circle.setAttribute('r','48');
       circle.setAttribute('fill','#E5E7EB');
       gSlices.appendChild(circle);
       gSlices.style.transform = `rotate(0deg)`;
       gLabels.style.transform = `rotate(0deg)`;
       return;
     }
+
     const slice = 360/n;
     const theta = deg2rad(slice);
+
     for (let i=0;i<n;i++){
       const start = i*slice - 90;
       const end   = (i+1)*slice - 90;
       const large = slice > 180 ? 1 : 0;
+
       const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
       const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
+
+      // 조각 (✅ 톤온톤 베이지)
       const p = document.createElementNS('http://www.w3.org/2000/svg','path');
       p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
-      p.setAttribute('fill', pastelHSL(i,n));
+      p.setAttribute('fill', wheelTone(i));
       gSlices.appendChild(p);
+
+      // 라벨
       const mid = start + slice/2;
       const rCenter = sectorCentroidR(42, theta);
       const rLabel = Math.max(8, Math.min(44, rCenter));
       drawChordAlignedLabelFixed(gLabels, items[i], mid, theta, rLabel);
     }
+
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
   }
@@ -194,9 +209,14 @@
     del.textContent = '삭제';
     del.className = 'danger';
     row.appendChild(input); row.appendChild(del);
+
     input.addEventListener('input', syncFromInputs);
-    input.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addRow(); }});
-    del.addEventListener('click', ()=>{ row.remove(); ensureOneRow(); syncFromInputs(); });
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); addRow(); }
+    });
+    del.addEventListener('click', ()=>{
+      row.remove(); ensureOneRow(); syncFromInputs();
+    });
     return row;
   }
   function renderInputs(){ inputsBox.innerHTML=''; (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v))); }
@@ -204,27 +224,32 @@
   function syncFromInputs(){ items = collectItems(); drawWheel(); resultEl.textContent = '선택된 재료가 여기에 표시됩니다'; }
   function addRow(value=''){ inputsBox.appendChild(rowTemplate(value)); inputsBox.lastChild.querySelector('input').focus(); }
 
-  /* ===== 스핀 ===== */
+  /* ===== 스핀: 미리 결정한 인덱스를 그대로 결과로 ===== */
   function spinOnce(){
     if(isSpinning) return;
     if(!items.length){ alert('항목을 1개 이상 입력해 주세요.'); return; }
     isSpinning = true; btnSpin.disabled = true;
+
     const n = items.length;
     const slice = 360/n;
+
     const targetIndex = Math.floor(Math.random()*n);
-    lastPickIndex = targetIndex;
     const mid = targetIndex*slice + slice/2;
     const alignToTop = 360 - mid;
     const need = (alignToTop - (currentDeg % 360) + 360) % 360;
+
     currentDeg += SPIN_TURNS_DEG + need;
+
+    // 결과를 저장(항목 변경 대비해서 index 대신 텍스트 자체 저장)
+    const pickedText = items[targetIndex];
+
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
+
     const onEnd = () => {
       gSlices.removeEventListener('transitionend', onEnd);
       isSpinning = false; btnSpin.disabled = false;
-      if (lastPickIndex >= 0 && lastPickIndex < items.length) {
-        resultEl.textContent = `선택된 재료: ${items[lastPickIndex]}`;
-      }
+      resultEl.textContent = `선택된 재료: ${pickedText}`;
     };
     gSlices.addEventListener('transitionend', onEnd, {once:true});
   }
@@ -238,12 +263,14 @@
     btnSpin   = document.getElementById('spin');
     btnAdd    = document.getElementById('add');
     btnClear  = document.getElementById('clear');
+
     btnAdd.addEventListener('click', ()=> addRow());
     btnClear.addEventListener('click', ()=>{
       items = []; inputsBox.innerHTML = ''; addRow('');
       drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다';
     });
     btnSpin.addEventListener('click', spinOnce);
+
     renderInputs(); drawWheel();
   });
 </script>
