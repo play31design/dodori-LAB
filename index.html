@@ -17,6 +17,9 @@
 
   .overline{font-size:12px;letter-spacing:.02em;color:#6b7280;text-align:center;margin-bottom:4px}
   h1{margin:8px 0 22px;font-size:32px;text-align:center;color:#000}
+  @media (max-width:480px){
+    h1{font-size:26px;} /* ✅ 모바일에서 타이틀 글자 크기 줄임 */
+  }
 
   .grid{display:grid;gap:20px}
   @media(min-width:900px){.grid{grid-template-columns:560px 1fr}}
@@ -89,16 +92,11 @@
 </div>
 
 <script>
-  /* ===== 유틸 & 전역 ===== */
   const deg2rad = d => d * Math.PI / 180;
-
   function pastelHSL(i, n){
     const h = Math.round((360 * i) / n);
-    const s = 70, l = 85;
-    return `hsl(${h}, ${s}%, ${l}%)`;
+    return `hsl(${h},70%,85%)`;
   }
-
-  // 섹션 기하학적 중심 반지름 근사
   const sectorCentroidR = (R, thetaRad) => {
     const half = thetaRad/2;
     if (half === 0) return R*0.6;
@@ -111,20 +109,18 @@
   let isSpinning = false;
   const SPIN_TURNS_DEG = 360 * 10;
   let currentDeg = 0;
-  let lastPickIndex = -1;   // ✅ 결과 일치용
+  let lastPickIndex = -1;
 
-  /* ===== 라벨: 현과 평행 + 중앙, '양끝정렬 금지' ===== */
-  // textLength/lengthAdjust 사용 안 함. 폭에 맞춰 글자 크기만 축소.
+  /* ===== 라벨: 현과 평행 + 중앙 ===== */
   function drawChordAlignedLabelFixed(group, textStr, midDeg, thetaRad, r){
-    const PADDING   = 2.0;     // 좌우 여백
-    const FONT_BASE = 5.0;     // 기본 폰트 크기
-    const FONT_MIN  = 2.6;     // 최소 폰트
-    const AVG_W     = 0.62;    // 평균 글자폭(경험치)
+    const PADDING   = 2.0;
+    const FONT_BASE = 5.0;
+    const FONT_MIN  = 2.6;
+    const AVG_W     = 0.62;
 
     const half = thetaRad / 2;
     const innerWidth = Math.max(0, 2 * r * Math.tan(half) - 2 * PADDING);
-
-    const angle = midDeg + 90; // 접선 방향(=현과 평행)
+    const angle = midDeg + 90;
 
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('transform', `rotate(${angle})`);
@@ -140,7 +136,7 @@
     const t = document.createElementNS('http://www.w3.org/2000/svg','text');
     t.setAttribute('text-anchor','middle');
     t.setAttribute('dominant-baseline','middle');
-    t.setAttribute('font-weight','700');
+    t.setAttribute('font-weight','600'); /* ✅ 덜 두껍게 */
     t.setAttribute('fill','#111');
     t.setAttribute('font-size', fontSize.toFixed(2));
     t.setAttribute('x','0');
@@ -155,51 +151,38 @@
     const n = items.length;
     gSlices.innerHTML = '';
     gLabels.innerHTML = '';
-
     if(n === 0){
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      circle.setAttribute('cx','0'); circle.setAttribute('cy','0'); circle.setAttribute('r','48');
+      circle.setAttribute('r','48');
       circle.setAttribute('fill','#E5E7EB');
       gSlices.appendChild(circle);
       gSlices.style.transform = `rotate(0deg)`;
       gLabels.style.transform = `rotate(0deg)`;
       return;
     }
-
     const slice = 360/n;
     const theta = deg2rad(slice);
-
     for (let i=0;i<n;i++){
       const start = i*slice - 90;
       const end   = (i+1)*slice - 90;
       const large = slice > 180 ? 1 : 0;
-
       const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
       const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
-
-      // 조각
       const p = document.createElementNS('http://www.w3.org/2000/svg','path');
       p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
       p.setAttribute('fill', pastelHSL(i,n));
       gSlices.appendChild(p);
-
-      // 라벨
       const mid = start + slice/2;
       const rCenter = sectorCentroidR(42, theta);
-      const innerBound = 6, outerBound = 46;
-      const rLabel = Math.max(innerBound+2, Math.min(outerBound-2, rCenter));
-
+      const rLabel = Math.max(8, Math.min(44, rCenter));
       drawChordAlignedLabelFixed(gLabels, items[i], mid, theta, rLabel);
     }
-
-    // 누적 회전 상태 유지
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
   }
 
   /* ===== 입력창 ===== */
   function ensureOneRow(){ if (inputsBox.children.length === 0) addRow(''); }
-
   function rowTemplate(value=''){
     const row = document.createElement('div');
     row.className = 'input-row';
@@ -211,70 +194,36 @@
     del.textContent = '삭제';
     del.className = 'danger';
     row.appendChild(input); row.appendChild(del);
-
     input.addEventListener('input', syncFromInputs);
-    input.addEventListener('keydown', e=>{
-      if(e.key==='Enter'){ e.preventDefault(); addRow(); }
-    });
-    del.addEventListener('click', ()=>{
-      row.remove(); ensureOneRow(); syncFromInputs();
-    });
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addRow(); }});
+    del.addEventListener('click', ()=>{ row.remove(); ensureOneRow(); syncFromInputs(); });
     return row;
   }
-  function renderInputs(){
-    inputsBox.innerHTML='';
-    (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v)));
-  }
-  function collectItems(){
-    return Array.from(inputsBox.querySelectorAll('input'))
-      .map(i=>i.value.trim())
-      .filter(Boolean);
-  }
-  function syncFromInputs(){
-    items = collectItems();
-    drawWheel();
-    resultEl.textContent = '선택된 재료가 여기에 표시됩니다';
-  }
-  function addRow(value=''){
-    inputsBox.appendChild(rowTemplate(value));
-    inputsBox.lastChild.querySelector('input').focus();
-  }
+  function renderInputs(){ inputsBox.innerHTML=''; (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v))); }
+  function collectItems(){ return Array.from(inputsBox.querySelectorAll('input')).map(i=>i.value.trim()).filter(Boolean); }
+  function syncFromInputs(){ items = collectItems(); drawWheel(); resultEl.textContent = '선택된 재료가 여기에 표시됩니다'; }
+  function addRow(value=''){ inputsBox.appendChild(rowTemplate(value)); inputsBox.lastChild.querySelector('input').focus(); }
 
-  /* ===== 스핀: 미리 결정한 인덱스를 그대로 결과로 ===== */
+  /* ===== 스핀 ===== */
   function spinOnce(){
     if(isSpinning) return;
     if(!items.length){ alert('항목을 1개 이상 입력해 주세요.'); return; }
     isSpinning = true; btnSpin.disabled = true;
-
     const n = items.length;
     const slice = 360/n;
-
-    // ✅ 어떤 칸이 걸릴지 미리 결정 & 저장
     const targetIndex = Math.floor(Math.random()*n);
     lastPickIndex = targetIndex;
-
-    // 그 칸의 중앙이 핀(12시)에 오도록 각도를 계산
     const mid = targetIndex*slice + slice/2;
     const alignToTop = 360 - mid;
     const need = (alignToTop - (currentDeg % 360) + 360) % 360;
-
     currentDeg += SPIN_TURNS_DEG + need;
-
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
-
     const onEnd = () => {
       gSlices.removeEventListener('transitionend', onEnd);
       isSpinning = false; btnSpin.disabled = false;
-
-      // ✅ 각도 재계산 없이, 미리 고른 인덱스로 결과 표시
       if (lastPickIndex >= 0 && lastPickIndex < items.length) {
         resultEl.textContent = `선택된 재료: ${items[lastPickIndex]}`;
-      } else {
-        // 드문 예외(스핀 중 항목 삭제 등) 대비
-        const final = (currentDeg % 360 + 360) % 360;
-        const idx = Math.floor(((360 - final + 90 + 360) % 360) / slice) % items.length;
-        resultEl.textContent = `선택된 재료: ${items[idx]}`;
       }
     };
     gSlices.addEventListener('transitionend', onEnd, {once:true});
@@ -289,19 +238,13 @@
     btnSpin   = document.getElementById('spin');
     btnAdd    = document.getElementById('add');
     btnClear  = document.getElementById('clear');
-
     btnAdd.addEventListener('click', ()=> addRow());
     btnClear.addEventListener('click', ()=>{
-      items = [];
-      inputsBox.innerHTML = '';
-      addRow('');
-      drawWheel();
-      resultEl.textContent='선택된 재료가 여기에 표시됩니다';
+      items = []; inputsBox.innerHTML = ''; addRow('');
+      drawWheel(); resultEl.textContent='선택된 재료가 여기에 표시됩니다';
     });
     btnSpin.addEventListener('click', spinOnce);
-
-    renderInputs();
-    drawWheel();
+    renderInputs(); drawWheel();
   });
 </script>
 </body>
