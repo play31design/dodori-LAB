@@ -110,23 +110,76 @@
     return Math.min(R*0.82, Math.max(R*0.38, r));
   };
 
-  /* 세로(중심→바깥) 배치용 폰트 크기 */
-  function fitFontSizeVertical(text, rStart, rEnd){
-    const maxSize = 5.5, minSize = 2.6;
-    const usable  = Math.max(10, rEnd - rStart);
-    const len = Math.max(1, [...text].length);
-    const lineFactor = 1.08;
-    let size = Math.min(maxSize, usable / (len * lineFactor));
-    size = Math.max(minSize, Math.min(maxSize, size));
-    return { size, lineFactor };
-  }
-
   /* ===== 상태/DOM ===== */
   let gSlices, gLabels, inputsBox, resultEl, btnSpin, btnAdd, btnClear;
   let items = ["병뚜껑","종이","빨대","멸균팩"];
   let isSpinning = false;
   const SPIN_TURNS_DEG = 360 * 10;
   let currentDeg = 0;
+
+  /* 폰트 크기: 반지름 중심을 기준으로 좌우(안/바깥)로 같은 여백이 남도록 계산 */
+  function computeFontSizeCentered(label, innerBound, outerBound){
+    const maxSize = 5.5, minSize = 2.6;
+    const len = Math.max(1, [...label].length);
+    const lineFactor = 1.08;
+    // step = size * lineFactor
+    // 중심에서 끝 글자까지의 반경 필요량 = step * (len - 1)/2
+    // 허용 최대 반경 절반폭 = Math.min(targetCenter - innerBound, outerBound - targetCenter) (targetCenter는 이후에 정해짐)
+    // targetCenter는 섹션 중앙반지름이므로, 이 함수 안에선 반환 시 lineFactor만 넘겨주고,
+    // 사이즈는 drawWheel에서 실제 중앙반경으로 클램프한다.
+    return { minSize, maxSize, lineFactor };
+  }
+
+  /* 각 섹션 라벨 그리기: 문자열 중심 고정 배치 */
+  function drawCenteredVerticalLabel(group, textStr, midDeg, targetCenter, innerBound, outerBound){
+    const { minSize, maxSize, lineFactor } = computeFontSizeCentered(textStr, innerBound, outerBound);
+    const len = Math.max(1, [...textStr].length);
+
+    // 먼저 큰 폰트에서 시작 → 경계 안에 모두 들어오도록 줄임
+    let fontSize = maxSize;
+    const halfCount = (len - 1) / 2;
+
+    // 경계 내에 들어오기 위한 최대 폰트
+    // halfExtent = step * halfCount <= maxHalf
+    const maxHalfRadial = Math.max(1, Math.min(targetCenter - innerBound, outerBound - targetCenter));
+    if (halfCount > 0){
+      const limitByRadial = (maxHalfRadial * 1) / (halfCount * lineFactor);
+      fontSize = Math.min(fontSize, limitByRadial);
+    }
+    fontSize = Math.max(minSize, Math.min(maxSize, fontSize));
+
+    const step = fontSize * lineFactor;
+
+    // 그룹: 각 섹션 중앙각도로만 회전
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('transform', `rotate(${midDeg})`);
+    group.appendChild(g);
+
+    // 텍스트 노드(수직 중앙은 우리가 직접 맞추므로 dominant-baseline 불필요)
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size', fontSize.toFixed(2));
+    t.setAttribute('font-weight','700');
+    t.setAttribute('fill','#111');
+
+    // 각 글자를 tspan으로 쪼개서 "가운데 글자"가 정확히 targetCenter에 오도록 배치
+    const chars = [...textStr];
+    const midIndex = Math.floor((len - 1) / 2);
+
+    for(let i=0;i<len;i++){
+      const span = document.createElementNS('http://www.w3.org/2000/svg','tspan');
+      span.setAttribute('x','0');
+
+      // i가 클수록 바깥쪽으로 이동(핀 쪽으로)하도록 y를 음수 방향으로 이동
+      const offset = (i - midIndex) * step;
+      const y = -(targetCenter + offset);
+      span.setAttribute('y', y.toFixed(2));
+      span.textContent = chars[i];
+      t.appendChild(span);
+    }
+
+    g.appendChild(t);
+  }
 
   function drawWheel(){
     const n = items.length;
@@ -161,45 +214,24 @@
       p.setAttribute('fill', pastelHSL(i,n));
       gSlices.appendChild(p);
 
-      // 라벨 (세로쓰기, 문자열 길이에 맞춰 중앙 정렬)
+      // 라벨 (문자열 중심을 반지름 중앙에 고정)
       const mid = start + slice/2;
       const label = (items[i] ?? '').toString().trim() || '항목';
 
-      const rCenter = sectorCentroidR(42, theta);
-      const rStart  = Math.max(8, rCenter - 10);
-      const rEnd    = Math.min(46, rCenter + 10);
+      // 반지름 중앙/경계
+      const rCenter = sectorCentroidR(42, theta);        // 섹션의 기하학적 중심 근처
+      const innerBound = 6;                               // 너무 안쪽으로 들어가지 않도록
+      const outerBound = 46;                              // 원 경계선 바로 안쪽
+      const targetCenter = Math.max(innerBound+2, Math.min(outerBound-2, rCenter));
 
-      const { size: fontSize, lineFactor } = fitFontSizeVertical(label, rStart, rEnd);
-      const len = Math.max(1, [...label].length);
-      const L = len * fontSize * lineFactor;
-
-      const targetCenter = (rStart + rEnd) / 2;
-      let startRadius = targetCenter - L/2;
-      startRadius = Math.max(6, Math.min(46 - L, startRadius));
-
-      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-      g.setAttribute('transform', `rotate(${mid})`);
-
-      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-      t.setAttribute('text-anchor','middle');
-      t.setAttribute('font-size', fontSize.toFixed(2));
-      t.setAttribute('font-weight','700');
-      t.setAttribute('fill','#111');
-      t.style.writingMode = 'vertical-rl';
-      t.style.glyphOrientationVertical = '0';
-
-      t.setAttribute('x', '0');
-      t.setAttribute('y', (-startRadius).toFixed(2));
-      t.textContent = label;
-
-      g.appendChild(t);
-      gLabels.appendChild(g);
+      drawCenteredVerticalLabel(gLabels, label, mid, targetCenter, innerBound, outerBound);
     }
 
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
   }
 
+  /* ===== 입력창 ===== */
   function ensureOneRow(){
     if (inputsBox.children.length === 0) addRow('');
   }
@@ -261,7 +293,7 @@
 
     // 랜덤 목표 섹션 하나 선택 → 그 섹션의 중앙이 핀(12시) 아래로 오도록 회전량 계산
     const targetIndex = Math.floor(Math.random()*n);
-    const mid = targetIndex*slice + slice/2; // 12시 기준 중앙각(우리가 그린 기준: -90 offset 고려)
+    const mid = targetIndex*slice + slice/2;
     const alignToTop = 360 - mid;
     const need = (alignToTop - (currentDeg % 360) + 360) % 360;
 
@@ -274,7 +306,7 @@
       gSlices.removeEventListener('transitionend', onEnd);
       isSpinning = false; btnSpin.disabled = false;
 
-      // ✅ 실제 최종 각도로 핀이 가리키는 섹션을 역산 (보이는 것과 100% 일치)
+      // 실제 최종 각도로 핀이 가리키는 섹션을 역산
       const final = (currentDeg % 360 + 360) % 360;          // 0~359
       const pointerLocal = (360 - final + 90 + 360) % 360;   // 12시=0 보정
       const idx = Math.floor(pointerLocal / slice) % n;
