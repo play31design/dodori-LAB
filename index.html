@@ -221,7 +221,7 @@
 
     const outline=document.createElementNS('http://www.w3.org/2000/svg','circle');
     outline.setAttribute('r','48'); outline.setAttribute('fill','none');
-    outline.setAttribute('stroke','#a4886d'); outline.setAttribute('stroke-width','1.0');
+    outline.setAttribute('stroke','#a4886d'); outline.setAttribute('stroke-width','0.5');
     gBorders.appendChild(outline);
 
     const borderColor='#b9a28b';
@@ -232,7 +232,7 @@
       line.setAttribute('x1','0'); line.setAttribute('y1','0');
       line.setAttribute('x2',xOuter.toFixed(2)); line.setAttribute('y2',yOuter.toFixed(2));
       line.setAttribute('stroke',borderColor);
-      line.setAttribute('stroke-width','0.7');
+      line.setAttribute('stroke-width','0.35');
       gBorders.appendChild(line);
     }
 
