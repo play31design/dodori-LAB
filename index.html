@@ -117,67 +117,49 @@
   const SPIN_TURNS_DEG = 360 * 10;
   let currentDeg = 0;
 
-  /* 폰트 크기: 반지름 중심을 기준으로 좌우(안/바깥)로 같은 여백이 남도록 계산 */
-  function computeFontSizeCentered(label, innerBound, outerBound){
-    const maxSize = 5.5, minSize = 2.6;
-    const len = Math.max(1, [...label].length);
-    const lineFactor = 1.08;
-    // step = size * lineFactor
-    // 중심에서 끝 글자까지의 반경 필요량 = step * (len - 1)/2
-    // 허용 최대 반경 절반폭 = Math.min(targetCenter - innerBound, outerBound - targetCenter) (targetCenter는 이후에 정해짐)
-    // targetCenter는 섹션 중앙반지름이므로, 이 함수 안에선 반환 시 lineFactor만 넘겨주고,
-    // 사이즈는 drawWheel에서 실제 중앙반경으로 클램프한다.
-    return { minSize, maxSize, lineFactor };
-  }
-
-  /* 각 섹션 라벨 그리기: 문자열 중심 고정 배치 */
+  /* 각 섹션 라벨: 문자열 중심 고정 + 첫 글자 바깥쪽 */
   function drawCenteredVerticalLabel(group, textStr, midDeg, targetCenter, innerBound, outerBound){
-    const { minSize, maxSize, lineFactor } = computeFontSizeCentered(textStr, innerBound, outerBound);
     const len = Math.max(1, [...textStr].length);
+    const lineFactor = 1.08;
+    const maxSize = 5.5, minSize = 2.6;
 
-    // 먼저 큰 폰트에서 시작 → 경계 안에 모두 들어오도록 줄임
-    let fontSize = maxSize;
-    const halfCount = (len - 1) / 2;
-
-    // 경계 내에 들어오기 위한 최대 폰트
-    // halfExtent = step * halfCount <= maxHalf
+    // 바깥/안쪽 여유(중앙에서 경계까지의 최소 거리)
     const maxHalfRadial = Math.max(1, Math.min(targetCenter - innerBound, outerBound - targetCenter));
-    if (halfCount > 0){
-      const limitByRadial = (maxHalfRadial * 1) / (halfCount * lineFactor);
-      fontSize = Math.min(fontSize, limitByRadial);
+
+    // len==1이면 step=0이어도 됨. len>1이면 (len-1)*step <= 2*maxHalfRadial
+    let fontSize = maxSize;
+    if (len > 1){
+      const limitBySpan = (2 * maxHalfRadial) / ((len - 1) * lineFactor);
+      fontSize = Math.min(fontSize, limitBySpan);
     }
     fontSize = Math.max(minSize, Math.min(maxSize, fontSize));
-
     const step = fontSize * lineFactor;
 
-    // 그룹: 각 섹션 중앙각도로만 회전
+    // 중앙 기준 시작 반경: 문자열 전체 길이의 중앙이 targetCenter가 되도록
+    const start = targetCenter - ((len - 1) / 2) * step;
+
+    // 그룹: 섹션 중앙각으로만 회전
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('transform', `rotate(${midDeg})`);
     group.appendChild(g);
 
-    // 텍스트 노드(수직 중앙은 우리가 직접 맞추므로 dominant-baseline 불필요)
+    // 문자별 tspan (첫 글자가 바깥쪽으로 가도록 역순 배치)
     const t = document.createElementNS('http://www.w3.org/2000/svg','text');
     t.setAttribute('text-anchor','middle');
     t.setAttribute('font-size', fontSize.toFixed(2));
     t.setAttribute('font-weight','700');
     t.setAttribute('fill','#111');
 
-    // 각 글자를 tspan으로 쪼개서 "가운데 글자"가 정확히 targetCenter에 오도록 배치
     const chars = [...textStr];
-    const midIndex = Math.floor((len - 1) / 2);
-
     for(let i=0;i<len;i++){
       const span = document.createElementNS('http://www.w3.org/2000/svg','tspan');
       span.setAttribute('x','0');
-
-      // i가 클수록 바깥쪽으로 이동(핀 쪽으로)하도록 y를 음수 방향으로 이동
-      const offset = (i - midIndex) * step;
-      const y = -(targetCenter + offset);
+      // 0번째 글자가 가장 바깥쪽(핀 방향)으로 가도록 (len-1-i)
+      const y = -( start + (len - 1 - i) * step );
       span.setAttribute('y', y.toFixed(2));
       span.textContent = chars[i];
       t.appendChild(span);
     }
-
     g.appendChild(t);
   }
 
@@ -220,7 +202,7 @@
 
       // 반지름 중앙/경계
       const rCenter = sectorCentroidR(42, theta);        // 섹션의 기하학적 중심 근처
-      const innerBound = 6;                               // 너무 안쪽으로 들어가지 않도록
+      const innerBound = 6;                               // 너무 안쪽은 피함
       const outerBound = 46;                              // 원 경계선 바로 안쪽
       const targetCenter = Math.max(innerBound+2, Math.min(outerBound-2, rCenter));
 
