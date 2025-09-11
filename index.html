@@ -6,12 +6,12 @@
 <title>dodori LAB</title>
 <style>
   :root{
-    --accent:#a4886d;          /* 버튼/핀/외곽선 색 */
-    --bg:#f8f2ed;              /* 페이지 배경 */
+    --accent:#a4886d;          
+    --bg:#f8f2ed;              
     --card:#fff;
-    --ink:#6d4f34;             /* 텍스트 색 */
-    --line:#a4886d;            /* 입력창 라인 색 */
-    --pink-btn:#FEEFF5;        /* 삭제 버튼 색(연) */
+    --ink:#6d4f34;             
+    --line:#a4886d;            
+    --pink-btn:#FEEFF5;        
     --pink-text:#9D174D;
   }
   *{box-sizing:border-box}
@@ -34,23 +34,29 @@
 
   /* 휠 */
   .wheel-box{width:min(100%,520px);margin:0 auto;}
-  .wheel-wrap{position:relative;width:100%;aspect-ratio:1/1;}
+  .wheel-wrap{
+    position:relative;
+    width:100%;
+    aspect-ratio:1/1;
+    overflow:visible; /* ✅ 그림자 안 잘리게 */
+  }
   svg{width:100%;height:100%;display:block}
   #slices,#borders,#labels{transform-box:fill-box;transform-origin:50% 50%}
 
- /* 상단 핀 (아래로 향하도록 180도 회전) */
-.pin{
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%) rotate(180deg); /* ✅ 아래 방향 */
-  top:-2px;                  /* 살짝 더 내려 자연스럽게 */
-  width:34px;
-  height:26px;
-  background:var(--accent);
-  clip-path:polygon(50% 0%, 100% 100%, 0% 100%); /* 기존 그대로 */
-  border-radius:10px;
-  filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));
-}
+  /* 상단 핀 (라운드 + 크기 살짝 키움 + 아래로 더 내려옴) */
+  .pin{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%) rotate(180deg); 
+    top:0px;                   /* ✅ 살짝 더 아래로 */
+    width:34px;
+    height:26px;
+    background:var(--accent);
+    clip-path:polygon(50% 0%, 100% 100%, 0% 100%);
+    border-radius:4px;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));
+    z-index:2;
+  }
 
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
   button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
@@ -199,14 +205,12 @@
       drawChordAlignedLabelFixed(gLabels, items[i], mid, theta, rLabel);
     }
 
-    /* 바깥 원 */
     const outline=document.createElementNS('http://www.w3.org/2000/svg','circle');
     outline.setAttribute('r','48'); outline.setAttribute('fill','none');
     outline.setAttribute('stroke','#a4886d'); outline.setAttribute('stroke-width','0.5');
     outline.setAttribute('stroke-linejoin','round');
     gBorders.appendChild(outline);
 
-    /* 경계선 */
     const borderColor='#b9a28b';
     for(let i=0;i<n;i++){
       const ang=deg2rad(i*slice-90);
