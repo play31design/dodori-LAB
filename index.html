@@ -23,12 +23,10 @@
 
   .card{background:var(--card);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden}
   .pad{padding:20px}
-  /* 아주 작은 화면에서 카드 패딩 살짝 축소 (선택) */
   @media (max-width:480px){ .pad{padding:16px} }
 
   /* 휠 */
-  /* ▼ 모바일 잘림 해결: 뷰포트 기준 92vw → 부모 기준 100% */
-  .wheel-box{width:min(100%,520px);margin:0 auto;}
+  .wheel-box{width:min(100%,520px);margin:0 auto;}  /* 모바일 잘림 방지 */
   .wheel-wrap{position:relative;width:100%;aspect-ratio:1/1;}
   svg{width:100%;height:100%;display:block}
   #slices,#labels{transform-box:fill-box;transform-origin:50% 50%}
@@ -44,10 +42,7 @@
   .ghost{background:#eef4ff;color:#3B82F6}
 
   /* 삭제/모두삭제 연한 분홍 */
-  .danger{
-    background:var(--pink-btn);
-    color:var(--pink-text);
-  }
+  .danger{ background:var(--pink-btn); color:var(--pink-text); }
 
   .result{font-weight:700;font-size:20px;margin:16px 0 0;text-align:center}
 
@@ -100,29 +95,11 @@
   /* ===== 유틸 ===== */
   const deg2rad = d => d * Math.PI / 180;
 
-  /* ===== 전역 상태/DOM ===== */
-  const gSlices = document.getElementById('slices');
-  const gLabels = document.getElementById('labels');
-  const inputsBox = document.getElementById('inputs');
-  const resultEl  = document.getElementById('result');
-  const btnSpin   = document.getElementById('spin');
-  const btnAdd    = document.getElementById('add');
-  const btnClear  = document.getElementById('clear');
-
-  // 기본 항목 (멸균팩 포함)
-  let items = ["병뚜껑","종이","빨대","멸균팩"];
-  let isSpinning = false;
-
-  /* 누적 회전 */
-  const SPIN_TURNS_DEG = 360 * 10;
-  let currentDeg = 0;
-
-  /* 파스텔 팔레트: 항목 수에 맞춰 겹치지 않게 균등 분포 */
+  /* 파스텔 팔레트: 겹치지 않게 균등 분포 (레거시 hsl 표기) */
   function pastelHSL(i, n){
     const h = Math.round((360 * i) / n);
-    const s = 70;
-    const l = 85;
-    return `hsl(${h} ${s}% ${l}%)`;
+    const s = 70, l = 85;
+    return `hsl(${h}, ${s}%, ${l}%)`;   // ← 공백 구분 대신 쉼표 구분
   }
 
   /* 섹터 중심 반지름 (텍스트는 조금 더 안쪽) */
@@ -140,23 +117,27 @@
     const len = Math.max(1, [...text].length);
     const lineFactor = 1.08;
     let size = Math.min(maxSize, usable / (len * lineFactor));
-    return { size: Math.max(minSize, Math.min(maxSize, size)), lineFactor };
+    size = Math.max(minSize, Math.min(maxSize, size));
+    return { size, lineFactor };
   }
 
-  /* ===== 휠 그리기 ===== */
+  /* ===== 상태/DOM ===== */
+  let gSlices, gLabels, inputsBox, resultEl, btnSpin, btnAdd, btnClear;
+  let items = ["병뚜껑","종이","빨대","멸균팩"];
+  let isSpinning = false;
+  const SPIN_TURNS_DEG = 360 * 10;
+  let currentDeg = 0;
+
   function drawWheel(){
     const n = items.length;
-
     gSlices.innerHTML = '';
     gLabels.innerHTML = '';
 
     if(n === 0){
-      // 연한 회색 원 유지
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       circle.setAttribute('cx','0'); circle.setAttribute('cy','0'); circle.setAttribute('r','48');
       circle.setAttribute('fill','#E5E7EB');
       gSlices.appendChild(circle);
-
       gSlices.style.transform = `rotate(0deg)`;
       gLabels.style.transform = `rotate(0deg)`;
       return;
@@ -173,6 +154,157 @@
       const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
       const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
 
-      // 조각
       const p = document.createElementNS('http://www.w3.org/2000/svg','path');
       p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
+      p.setAttribute('fill', pastelHSL(i,n));
+      gSlices.appendChild(p);
+
+      const mid = start + slice/2;
+      const label = (items[i] ?? '').toString().trim() || '항목';
+
+      const rCenter = sectorCentroidR(42, theta);
+      const rStart  = Math.max(8, rCenter - 10);
+      const rEnd    = Math.min(46, rCenter + 10);
+
+      const { size: fontSize, lineFactor } = fitFontSizeVertical(label, rStart, rEnd);
+      const len = Math.max(1, [...label].length);
+      const L = len * fontSize * lineFactor;
+
+      const targetCenter = (rStart + rEnd) / 2;
+      let startRadius = targetCenter - L/2;
+      startRadius = Math.max(6, Math.min(46 - L, startRadius));
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('transform', `rotate(${mid})`);
+
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('text-anchor','middle');
+      t.setAttribute('font-size', fontSize.toFixed(2));
+      t.setAttribute('font-weight','700');
+      t.setAttribute('fill','#111');
+      t.style.writingMode = 'vertical-rl';
+      t.style.glyphOrientationVertical = '0';
+
+      t.setAttribute('x', '0');
+      t.setAttribute('y', (-startRadius).toFixed(2));
+      t.textContent = label;
+
+      g.appendChild(t);
+      gLabels.appendChild(g);
+    }
+
+    gSlices.style.transform = `rotate(${currentDeg}deg)`;
+    gLabels.style.transform = `rotate(${currentDeg}deg)`;
+  }
+
+  function ensureOneRow(){
+    if (inputsBox.children.length === 0) addRow('');
+  }
+
+  function rowTemplate(value=''){
+    const row = document.createElement('div');
+    row.className = 'input-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = '예 : 휴지심';
+    input.value = value;
+    const del = document.createElement('button');
+    del.textContent = '삭제';
+    del.className = 'danger';
+    row.appendChild(input); row.appendChild(del);
+
+    input.addEventListener('input', syncFromInputs);
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); addRow(); }
+    });
+    del.addEventListener('click', ()=>{
+      row.remove();
+      ensureOneRow();
+      syncFromInputs();
+    });
+    return row;
+  }
+
+  function renderInputs(){
+    inputsBox.innerHTML='';
+    (items.length?items:['']).forEach(v=>inputsBox.appendChild(rowTemplate(v)));
+  }
+
+  function collectItems(){
+    return Array.from(inputsBox.querySelectorAll('input'))
+      .map(i=>i.value.trim())
+      .filter(Boolean);
+  }
+
+  function syncFromInputs(){
+    items = collectItems();
+    drawWheel();
+    resultEl.textContent = '선택된 재료가 여기에 표시됩니다';
+  }
+
+  function addRow(value=''){
+    inputsBox.appendChild(rowTemplate(value));
+    inputsBox.lastChild.querySelector('input').focus();
+  }
+
+  function spinOnce(){
+    if(isSpinning) return;
+    if(!items.length){ alert('항목을 1개 이상 입력해 주세요.'); return; }
+    isSpinning = true; btnSpin.disabled = true;
+
+    const n = items.length, slice = 360/n;
+    const pickIndex = Math.floor(Math.random()*n);
+    const mid = pickIndex*slice + slice/2;
+    const alignToTop = 360 - mid;
+
+    const need = (alignToTop - (currentDeg % 360) + 360) % 360;
+    const delta = SPIN_TURNS_DEG + need;
+    currentDeg += delta;
+
+    gSlices.style.transform = `rotate(${currentDeg}deg)`;
+    gLabels.style.transform = `rotate(${currentDeg}deg)`;
+
+    const onEnd = () => {
+      gSlices.removeEventListener('transitionend', onEnd);
+      isSpinning = false; btnSpin.disabled = false;
+      resultEl.textContent = `선택된 재료: ${items[pickIndex]}`;
+    };
+    gSlices.addEventListener('transitionend', onEnd, {once:true});
+  }
+
+  /* ===== 안전한 초기화 ===== */
+  window.addEventListener('DOMContentLoaded', () => {
+    try{
+      gSlices   = document.getElementById('slices');
+      gLabels   = document.getElementById('labels');
+      inputsBox = document.getElementById('inputs');
+      resultEl  = document.getElementById('result');
+      btnSpin   = document.getElementById('spin');
+      btnAdd    = document.getElementById('add');
+      btnClear  = document.getElementById('clear');
+
+      btnAdd.addEventListener('click', ()=> addRow());
+      btnClear.addEventListener('click', ()=>{
+        items = [];
+        inputsBox.innerHTML = '';
+        addRow('');
+        drawWheel();
+        resultEl.textContent='선택된 재료가 여기에 표시됩니다';
+      });
+      btnSpin.addEventListener('click', spinOnce);
+
+      renderInputs();
+      drawWheel();
+    }catch(e){
+      // 에러가 나도 페이지가 빈 화면이 되지 않도록 최소한의 UI 확보
+      console.error(e);
+      if (inputsBox && inputsBox.children.length === 0) {
+        const fallback = document.createElement('div');
+        fallback.textContent = '항목을 입력해 주세요';
+        inputsBox.appendChild(fallback);
+      }
+    }
+  });
+</script>
+</body>
+</html>
