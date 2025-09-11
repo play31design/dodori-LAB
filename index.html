@@ -29,8 +29,8 @@
   @media(min-width:900px){.grid{grid-template-columns:560px 1fr}}
 
   .card{background:var(--card);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden}
-  .pad{padding:24px}                 /* ✅ 여백 살짝 증가 */
-  @media (max-width:480px){ .pad{padding:20px} }  /* ✅ 모바일도 약간 증가 */
+  .pad{padding:24px}                 
+  @media (max-width:480px){ .pad{padding:20px} }  
 
   /* 휠 */
   .wheel-box{width:min(100%,520px);margin:0 auto;}
@@ -38,12 +38,18 @@
   svg{width:100%;height:100%;display:block}
   #slices,#borders,#labels{transform-box:fill-box;transform-origin:50% 50%}
 
-  /* 상단 핀 */
+  /* 상단 핀 (삼각형 → 라운드 + 크기 살짝 키움) */
   .pin{
-    position:absolute;left:50%;transform:translateX(-50%);top:-4px;width:0;height:0;
-    border-left:14px solid transparent;border-right:14px solid transparent;
-    border-top:24px solid var(--accent);
-    filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    top:-6px;                  
+    width:34px;                
+    height:26px;               
+    background:var(--accent);
+    clip-path:polygon(50% 0%, 100% 100%, 0% 100%);
+    border-radius:4px;         /* ✅ 모서리 둥글림 */
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));
   }
 
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
@@ -193,14 +199,14 @@
       drawChordAlignedLabelFixed(gLabels, items[i], mid, theta, rLabel);
     }
 
-    /* ✅ 바깥 원: 절반 두께(0.5) */
+    /* 바깥 원 */
     const outline=document.createElementNS('http://www.w3.org/2000/svg','circle');
     outline.setAttribute('r','48'); outline.setAttribute('fill','none');
     outline.setAttribute('stroke','#a4886d'); outline.setAttribute('stroke-width','0.5');
     outline.setAttribute('stroke-linejoin','round');
     gBorders.appendChild(outline);
 
-    /* ✅ 안쪽 경계선: 절반 두께(0.35), 중앙에서 시작 */
+    /* 경계선 */
     const borderColor='#b9a28b';
     for(let i=0;i<n;i++){
       const ang=deg2rad(i*slice-90);
