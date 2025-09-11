@@ -33,8 +33,8 @@
 
   /* 상단 핀 */
   .pin{position:absolute;left:50%;transform:translateX(-50%);top:-4px;width:0;height:0;
-       border-left:14px solid transparent;border-right:14px solid transparent;
-       border-top:24px solid var(--accent);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+        border-left:14px solid transparent;border-right:14px solid transparent;
+        border-top:24px solid var(--accent);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
 
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center}
   button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
@@ -59,7 +59,6 @@
   <h1>어떤 재료를 사용해 볼까요?</h1>
 
   <div class="grid">
-    <!-- 왼쪽: 돌림판 -->
     <div class="card pad">
       <div class="wheel-box">
         <div class="wheel-wrap">
@@ -77,7 +76,6 @@
       <div id="result" class="result">선택된 재료가 여기에 표시됩니다</div>
     </div>
 
-    <!-- 오른쪽: 입력창 -->
     <div class="card pad">
       <h2 class="inputs-title">수집한 재료를 입력해 주세요.</h2>
       <div class="inputs" id="inputs"></div>
@@ -91,7 +89,15 @@
 
 <script>
   /* ===== 유틸 & 전역 ===== */
-  const deg2rad = d => d * Math.PI / 180;
+  const DEG_TO_RAD = Math.PI / 180;
+  const SPIN_TURNS_DEG = 360 * 10;
+  const WHEEL_RADIUS = 48;
+  const TEXT_RADIUS = 30; // 텍스트가 위치할 반지름
+
+  let gSlices, gLabels, inputsBox, resultEl, btnSpin, btnAdd, btnClear;
+  let items = ["병뚜껑", "종이", "빨대", "멸균팩"];
+  let isSpinning = false;
+  let currentDeg = 0;
 
   // 균등 분포 파스텔 (레거시 hsl 표기: 구형 Safari 호환)
   function pastelHSL(i, n){
@@ -100,84 +106,30 @@
     return `hsl(${h}, ${s}%, ${l}%)`;
   }
 
-  // 섹션 기하학적 중심 반지름 근사 (조금 안쪽으로 클램프)
-  const sectorCentroidR = (R, thetaRad) => {
-    const half = thetaRad/2;
-    if (half === 0) return R*0.6;
-    const r = (2*R*Math.sin(half)) / (3*half);
-    return Math.min(R*0.82, Math.max(R*0.38, r));
-  };
-
-  /* ===== 라벨 모드(고정) 파라미터 ===== */
-  const LABEL_MODE   = 'fixed'; // 'fixed' | 'fit'
-  const FIXED_FONT   = 5.0;     // 고정 폰트 크기
-  const STEP_FACTOR  = 1.08;    // 글자 간 간격 배수
-  const FIXED_R      = 30;      // 라벨 중심 반지름(원 반지름 48 기준)
-  const FLIP_LEFT    = true;    // 왼쪽 반원 읽기 방향 뒤집기
-  const SHRINK_ON_OVERFLOW = true;
-  const MIN_FONT     = 2.6;
-  const MAX_FONT     = 5.5;
-
-  let gSlices, gLabels, inputsBox, resultEl, btnSpin, btnAdd, btnClear;
-  let items = ["병뚜껑","종이","빨대","멸균팩"];  // 기본 항목에 멸균팩 포함
-  let isSpinning = false;
-  const SPIN_TURNS_DEG = 360 * 10;
-  let currentDeg = 0;
-
-  /* ===== 라벨 그리기 (중앙 고정, 고정 모드 지원) ===== */
-  function drawCenteredVerticalLabel(group, textStr, midDeg, targetCenter, innerBound, outerBound){
-    const len = Math.max(1, [...textStr].length);
-    const lineFactor = STEP_FACTOR;
-
-    // 1) 폰트/중심반경 결정
-    let size, centerR;
-    if (LABEL_MODE === 'fixed') {
-      size = FIXED_FONT;
-      centerR = FIXED_R;
-      if (SHRINK_ON_OVERFLOW && len > 1) {
-        const maxHalf = Math.max(1, Math.min(centerR - innerBound, outerBound - centerR));
-        const limitBySpan = (2 * maxHalf) / ((len - 1) * lineFactor);
-        size = Math.max(MIN_FONT, Math.min(FIXED_FONT, limitBySpan));
-      }
-    } else {
-      // fit 모드(참고용, 기본은 fixed)
-      const maxHalf = Math.max(1, Math.min(targetCenter - innerBound, outerBound - targetCenter));
-      size = MAX_FONT;
-      if (len > 1) size = Math.min(size, (2 * maxHalf) / ((len - 1) * lineFactor));
-      size = Math.max(MIN_FONT, size);
-      centerR = targetCenter;
-    }
-    const step = size * lineFactor;
-
-    // 2) 문자열 전체 중심을 centerR에 고정
-    const start = centerR - ((len - 1) / 2) * step;
-
-    // 3) 왼쪽 반원 보정 (읽기 방향 통일; 끄려면 FLIP_LEFT=false)
-    const outwardSign = (FLIP_LEFT && Math.cos(deg2rad(midDeg)) < 0) ? -1 : +1;
-
-    // 4) DOM 생성
+  /* ===== 라벨: 수평 정렬, 섹션 중앙에 회전 배치 ===== */
+  function drawRotatedLabel(group, textStr, midDeg, radius){
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('transform', `rotate(${midDeg})`);
-    group.appendChild(g);
-
+    
+    // SVG transform은 오른쪽으로 회전하는 양의 각도를 사용
+    // 텍스트를 부채꼴의 현과 평행하게 맞추기 위해 90도를 더해줘야 함
+    const rotationDeg = midDeg + 90;
+    
+    // SVG 중심을 기준으로 회전하도록 transform-origin 설정
+    g.setAttribute('transform', `translate(0, 0) rotate(${rotationDeg})`);
+    
     const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('text-anchor','middle');
-    t.setAttribute('font-size', size.toFixed(2));
+    
+    // 텍스트를 지정된 반지름(radius) 위치에 배치
+    t.setAttribute('x', '0');
+    t.setAttribute('y', -radius);
+    t.setAttribute('text-anchor', 'middle'); // 텍스트를 중앙 정렬
+    t.setAttribute('font-size', '5.5');
     t.setAttribute('font-weight','700');
     t.setAttribute('fill','#111');
-
-    const chars = [...textStr];
-    for(let i=0;i<len;i++){
-      const span = document.createElementNS('http://www.w3.org/2000/svg','tspan');
-      span.setAttribute('x','0');
-      // 오른쪽 반원: 0번째가 바깥쪽(핀 방향) → (len-1-i)
-      // 왼쪽 반원: 진행 방향 뒤집기 → i
-      const k = (outwardSign === 1) ? (len - 1 - i) : i;
-      span.setAttribute('y', -(start + k*step).toFixed(2));
-      span.textContent = chars[i];
-      t.appendChild(span);
-    }
+    t.textContent = textStr;
+    
     g.appendChild(t);
+    group.appendChild(g);
   }
 
   /* ===== 휠 그리기 ===== */
@@ -187,7 +139,6 @@
     gLabels.innerHTML = '';
 
     if(n === 0){
-      // 항목 없을 때 연한 회색 원만 유지
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       circle.setAttribute('cx','0'); circle.setAttribute('cy','0'); circle.setAttribute('r','48');
       circle.setAttribute('fill','#E5E7EB');
@@ -197,35 +148,30 @@
       return;
     }
 
-    const slice = 360/n;
-    const theta = deg2rad(slice);
+    const sliceAngle = 360/n;
 
     for (let i=0;i<n;i++){
-      const start = i*slice - 90;
-      const end   = (i+1)*slice - 90;
-      const large = slice > 180 ? 1 : 0;
+      const startDeg = i*sliceAngle - 90;
+      const endDeg = (i+1)*sliceAngle - 90;
+      const largeArcFlag = sliceAngle > 180 ? 1 : 0;
 
-      const x1 = 48*Math.cos(deg2rad(start)), y1 = 48*Math.sin(deg2rad(start));
-      const x2 = 48*Math.cos(deg2rad(end)),   y2 = 48*Math.sin(deg2rad(end));
+      const x1 = WHEEL_RADIUS * Math.cos(startDeg * DEG_TO_RAD);
+      const y1 = WHEEL_RADIUS * Math.sin(startDeg * DEG_TO_RAD);
+      const x2 = WHEEL_RADIUS * Math.cos(endDeg * DEG_TO_RAD);
+      const y2 = WHEEL_RADIUS * Math.sin(endDeg * DEG_TO_RAD);
 
       // 조각
       const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-      p.setAttribute('d', `M0 0 L ${x1} ${y1} A 48 48 0 ${large} 1 ${x2} ${y2} Z`);
+      p.setAttribute('d', `M0 0 L ${x1} ${y1} A ${WHEEL_RADIUS} ${WHEEL_RADIUS} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`);
       p.setAttribute('fill', pastelHSL(i,n));
       gSlices.appendChild(p);
 
       // 라벨
-      const mid = start + slice/2;
+      const midDeg = i * sliceAngle + sliceAngle / 2;
       const label = (items[i] ?? '').toString().trim() || '항목';
-
-      const rCenter = sectorCentroidR(42, theta);
-      const innerBound = 6, outerBound = 46;
-      const targetCenter = Math.max(innerBound+2, Math.min(outerBound-2, rCenter));
-
-      drawCenteredVerticalLabel(gLabels, label, mid, targetCenter, innerBound, outerBound);
+      drawRotatedLabel(gLabels, label, midDeg, TEXT_RADIUS);
     }
 
-    // 누적 회전 유지(입력 변경 시 시각상태 보존)
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
   }
@@ -280,27 +226,29 @@
     isSpinning = true; btnSpin.disabled = true;
 
     const n = items.length;
-    const slice = 360/n;
+    const sliceAngle = 360/n;
+    
+    // 최종 결과를 미리 결정
+    const targetIndex = Math.floor(Math.random() * n);
+    
+    // 핀 위치에 정확히 오도록 필요한 회전 각도 계산
+    // 12시 방향(0도)에 오도록 -90도 보정
+    const alignToTop = -90;
+    const currentAngle = (currentDeg + 360) % 360;
+    const targetAngle = (targetIndex * sliceAngle) + (sliceAngle / 2);
+    
+    const requiredRotation = 360 - ((targetAngle - alignToTop + 360) % 360);
+    const totalRotation = currentDeg + SPIN_TURNS_DEG + requiredRotation;
 
-    const targetIndex = Math.floor(Math.random()*n);
-    const mid = targetIndex*slice + slice/2;
-    const alignToTop = 360 - mid;
-    const need = (alignToTop - (currentDeg % 360) + 360) % 360;
-
-    currentDeg += SPIN_TURNS_DEG + need;
+    currentDeg = totalRotation;
 
     gSlices.style.transform = `rotate(${currentDeg}deg)`;
     gLabels.style.transform = `rotate(${currentDeg}deg)`;
 
     const onEnd = () => {
-      gSlices.removeEventListener('transitionend', onEnd);
-      isSpinning = false; btnSpin.disabled = false;
-
-      const final = (currentDeg % 360 + 360) % 360;         // 0~359
-      const pointerLocal = (360 - final + 90 + 360) % 360;  // 12시=0 보정
-      const idx = Math.floor(pointerLocal / slice) % n;
-
-      resultEl.textContent = `선택된 재료: ${items[idx]}`;
+      isSpinning = false;
+      btnSpin.disabled = false;
+      resultEl.textContent = `선택된 재료: ${items[targetIndex]}`;
     };
     gSlices.addEventListener('transitionend', onEnd, {once:true});
   }
@@ -319,8 +267,8 @@
     btnClear.addEventListener('click', ()=>{
       items = [];
       inputsBox.innerHTML = '';
-      addRow('');          // 빈 입력 1칸 남김
-      drawWheel();         // 회색 원 유지
+      addRow('');
+      drawWheel();
       resultEl.textContent='선택된 재료가 여기에 표시됩니다';
     });
     btnSpin.addEventListener('click', spinOnce);
